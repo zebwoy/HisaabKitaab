@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Plus,
   Download,
@@ -10,7 +10,7 @@ import {
   TrendingDown,
 } from 'lucide-react';
 import DatePicker from 'react-datepicker';
-import Select from 'react-select';
+import Select, { SingleValue } from 'react-select';
 import 'react-datepicker/dist/react-datepicker.css';
 
 interface Transaction {
@@ -18,10 +18,32 @@ interface Transaction {
   date: string;
   category: 'Income' | 'Expense';
   subcategory: string;
-  description: string;
+  sender: string;
+  receiver: string;
+  remarks: string;
   amount: number;
-  notes?: string;
+  created_at?: string;
 }
+
+interface FormState {
+  date: string;
+  category: 'Income' | 'Expense';
+  subcategory: string;
+  amount: string;
+  sender: string;
+  receiver: string;
+  remarks: string;
+}
+
+const getDefaultFormState = (): FormState => ({
+  date: new Date().toISOString().split('T')[0],
+  category: 'Income',
+  subcategory: 'Donations',
+  amount: '',
+  sender: '',
+  receiver: '',
+  remarks: '',
+});
 
 interface CategoryOption {
   value: 'Income' | 'Expense';
@@ -43,16 +65,12 @@ export default function AccountingSystem() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [authError, setAuthError] = useState('');
-  const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
-    category: 'Income',
-    subcategory: 'Donations',
-    description: '',
-    amount: '',
-    notes: ''
-  });
+  const [formData, setFormData] = useState<FormState>(getDefaultFormState());
   const [showPassword, setShowPassword] = useState(false);
   const [activeTab, setActiveTab] = useState('add');
+  const [isLoadingData, setIsLoadingData] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [dataError, setDataError] = useState('');
   
   // Date range filter state
   const [dateRange, setDateRange] = useState({
@@ -75,19 +93,33 @@ export default function AccountingSystem() {
     const list = formData.category === 'Income' ? incomeSubcategories : expenseSubcategories;
     return list.map((sub) => ({ value: sub, label: sub }));
   };
+  const subcategoryOptions = getSubcategoryOptions();
+
+  const fetchTransactions = useCallback(async () => {
+    setIsLoadingData(true);
+    setDataError('');
+    try {
+      const response = await fetch('/.netlify/functions/transactions');
+      if (!response.ok) {
+        throw new Error('Unable to load transactions from the server.');
+      }
+      const data: Transaction[] = await response.json();
+      setTransactions(data);
+    } catch (error) {
+      setDataError((error as Error).message || 'Unable to load transactions.');
+    } finally {
+      setIsLoadingData(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const saved = localStorage.getItem('madrasah_transactions');
     const savedPassword = localStorage.getItem('madrasah_password');
-    if (saved) setTransactions(JSON.parse(saved));
     if (savedPassword) setPassword(savedPassword);
     
-    // Restore login session if it exists
     if (sessionStorage.getItem('madrasah_logged_in') === 'true') {
       setIsLoggedIn(true);
     }
     
-    // Initialize date range to current month
     const today = new Date();
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
     const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
@@ -96,6 +128,10 @@ export default function AccountingSystem() {
       toDate: lastDay.toISOString().split('T')[0]
     });
   }, []);
+
+  useEffect(() => {
+    fetchTransactions();
+  }, [fetchTransactions]);
 
   // Helper function to get date range based on filter mode
   const getDateRangeForMode = (mode: 'thisMonth' | 'thisQuarter' | 'thisFiscalYear' | 'allTime' | 'custom') => {
@@ -216,6 +252,20 @@ export default function AccountingSystem() {
     }
   };
 
+  const handleCategorySelect = (option: SingleValue<CategoryOption>) => {
+    const value = option?.value ?? 'Income';
+    setFormData({
+      ...formData,
+      category: value,
+      subcategory: value === 'Income' ? 'Donations' : 'Salaries',
+    });
+  };
+
+  const handleSubcategorySelect = (option: SingleValue<SubcategoryOption>) => {
+    const value = option?.value ?? '';
+    setFormData({ ...formData, subcategory: value });
+  };
+
   // ---- AUTH & VALIDATION ----
 
   const validateTransactionForm = () => {
@@ -230,10 +280,16 @@ export default function AccountingSystem() {
     if (!formData.subcategory) {
       errors.subcategory = 'Subcategory is required';
     }
-    if (!formData.description.trim()) {
-      errors.description = 'Description is required';
-    } else if (formData.description.trim().length < 3) {
-      errors.description = 'Description should be at least 3 characters';
+    if (!formData.sender.trim()) {
+      errors.sender = 'Sender is required';
+    }
+    if (!formData.receiver.trim()) {
+      errors.receiver = 'Receiver is required';
+    }
+    if (!formData.remarks.trim()) {
+      errors.remarks = 'Remarks are required';
+    } else if (formData.remarks.trim().length < 3) {
+      errors.remarks = 'Remarks should be at least 3 characters';
     }
 
     if (formData.amount === '') {
@@ -289,41 +345,68 @@ export default function AccountingSystem() {
     setLoginPassword('');
   };
 
-  const handleAddTransaction = () => {
+  const handleAddTransaction = async () => {
     if (!validateTransactionForm()) return;
+    setIsSyncing(true);
+    setDataError('');
 
-    const newTransaction: Transaction = {
-      id: Date.now(),
+    const payload = {
       ...formData,
-      amount: parseFloat(formData.amount),
-      category: formData.category as 'Income' | 'Expense',
+      sender: formData.sender.trim(),
+      receiver: formData.receiver.trim(),
+      remarks: formData.remarks.trim(),
+      amount: Number(formData.amount),
     };
 
-    const updated = [newTransaction, ...transactions];
-    setTransactions(updated);
-    localStorage.setItem('madrasah_transactions', JSON.stringify(updated));
-    
-    setFormData({
-      date: new Date().toISOString().split('T')[0],
-      category: 'Income',
-      subcategory: 'Donations',
-      description: '',
-      amount: '',
-      notes: ''
-    });
-    setFormErrors({});
-  };
+    try {
+      const response = await fetch('/.netlify/functions/transactions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
 
-  const handleDeleteTransaction = (id: number) => {
-    if (window.confirm('Delete this transaction?')) {
-      const updated = transactions.filter(t => t.id !== id);
-      setTransactions(updated);
-      localStorage.setItem('madrasah_transactions', JSON.stringify(updated));
+      if (!response.ok) {
+        throw new Error('Unable to save the transaction. Please try again.');
+      }
+
+      const created: Transaction = await response.json();
+      setTransactions((prev) => [created, ...prev]);
+      setFormData(getDefaultFormState());
+      setFormErrors({});
+    } catch (error) {
+      setDataError((error as Error).message || 'Unable to save the transaction.');
+    } finally {
+      setIsSyncing(false);
     }
   };
 
-  const calculateStats = (transList?: Transaction[] | null) => {
-    const trans = (transList ?? getFilteredTransactions()) as Transaction[];
+  const handleDeleteTransaction = async (id: number) => {
+    if (!window.confirm('Delete this transaction?')) {
+      return;
+    }
+
+    setIsSyncing(true);
+    setDataError('');
+    try {
+      const response = await fetch(`/.netlify/functions/transactions?id=${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok && response.status !== 204) {
+        throw new Error('Unable to delete the transaction.');
+      }
+
+      setTransactions((prev) => prev.filter((t) => t.id !== id));
+    } catch (error) {
+      setDataError((error as Error).message || 'Unable to delete the transaction.');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const calculateStats = (trans: Transaction[]) => {
     const income = trans
       .filter(t => t.category === 'Income')
       .reduce((sum, t) => sum + t.amount, 0);
@@ -335,17 +418,17 @@ export default function AccountingSystem() {
     return { income, expenses, balance: income - expenses };
   };
 
-
   const exportToCSV = () => {
     const filteredTrans = getFilteredTransactions();
-    const headers = ['Date', 'Category', 'Subcategory', 'Description', 'Amount', 'Notes'];
+    const headers = ['Date', 'Category', 'Subcategory', 'Sender', 'Receiver', 'Amount', 'Remarks'];
     const rows = filteredTrans.map(t => [
       t.date,
       t.category,
       t.subcategory,
-      t.description,
+      t.sender,
+      t.receiver,
       t.amount,
-      t.notes || ''
+      t.remarks || ''
     ]);
 
     const dateRangeStr = dateFilterMode === 'custom' 
@@ -382,6 +465,7 @@ export default function AccountingSystem() {
 
   const filteredTransactions = getFilteredTransactions();
   const stats = calculateStats(filteredTransactions);
+  const allTimeStats = calculateStats(transactions);
   const previousPeriodStats = calculateStats(getPreviousPeriodTransactions());
 
   // Login Screen
@@ -480,16 +564,16 @@ export default function AccountingSystem() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-lg shadow p-4 md:p-6">
             <p className="text-gray-600 text-sm">Total Income (All Time)</p>
-            <p className="text-2xl font-bold text-green-600">₹{calculateStats(transactions).income.toLocaleString('en-IN')}</p>
+            <p className="text-2xl font-bold text-green-600">₹{allTimeStats.income.toLocaleString('en-IN')}</p>
           </div>
           <div className="bg-white rounded-lg shadow p-4 md:p-6">
             <p className="text-gray-600 text-sm">Total Expenses (All Time)</p>
-            <p className="text-2xl font-bold text-red-600">₹{calculateStats(transactions).expenses.toLocaleString('en-IN')}</p>
+            <p className="text-2xl font-bold text-red-600">₹{allTimeStats.expenses.toLocaleString('en-IN')}</p>
           </div>
           <div className="bg-white rounded-lg shadow p-4 md:p-6">
             <p className="text-gray-600 text-sm">Balance (All Time)</p>
-            <p className={`text-2xl font-bold ${calculateStats(transactions).balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
-              ₹{calculateStats(transactions).balance.toLocaleString('en-IN')}
+            <p className={`text-2xl font-bold ${allTimeStats.balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
+              ₹{allTimeStats.balance.toLocaleString('en-IN')}
             </p>
           </div>
           <div className="bg-white rounded-lg shadow p-4 md:p-6">
@@ -499,6 +583,17 @@ export default function AccountingSystem() {
             </p>
           </div>
         </div>
+
+        {dataError && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {dataError}
+          </div>
+        )}
+        {isSyncing && (
+          <div className="mb-4 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
+            Syncing with Netlify DB...
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex flex-wrap gap-2 mb-6">
@@ -560,17 +655,10 @@ export default function AccountingSystem() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold mb-1">Category *</label>
-                  <Select
+                  <Select<CategoryOption>
                     options={categoryOptions}
                     value={categoryOptions.find((opt) => opt.value === formData.category)}
-                    onChange={(option) => {
-                      const value = (option as { value: string } | null)?.value || 'Income';
-                      setFormData({
-                        ...formData,
-                        category: value,
-                        subcategory: value === 'Income' ? 'Donations' : 'Salaries',
-                      });
-                    }}
+                    onChange={handleCategorySelect}
                     classNamePrefix="hk-select"
                     className="text-sm"
                     styles={{
@@ -591,13 +679,10 @@ export default function AccountingSystem() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold mb-1">Subcategory *</label>
-                  <Select
-                    options={getSubcategoryOptions()}
-                    value={getSubcategoryOptions().find((opt) => opt.value === formData.subcategory)}
-                    onChange={(option) => {
-                      const value = (option as { value: string } | null)?.value || '';
-                      setFormData({ ...formData, subcategory: value });
-                    }}
+                  <Select<SubcategoryOption>
+                    options={subcategoryOptions}
+                    value={subcategoryOptions.find((opt) => opt.value === formData.subcategory)}
+                    onChange={handleSubcategorySelect}
                     classNamePrefix="hk-select"
                     className="text-sm"
                     styles={{
@@ -629,36 +714,55 @@ export default function AccountingSystem() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold mb-2">Description *</label>
-                <input
-                  type="text"
-                  placeholder="e.g., Monthly donation from Mrs. Ahmed"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-                />
-                {formErrors.description && (
-                  <p className="mt-1 text-xs text-red-600">{formErrors.description}</p>
-                )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Sender *</label>
+                  <input
+                    type="text"
+                    placeholder="Name or entity sending funds"
+                    value={formData.sender}
+                    onChange={(e) => setFormData({ ...formData, sender: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                  />
+                  {formErrors.sender && (
+                    <p className="mt-1 text-xs text-red-600">{formErrors.sender}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Receiver *</label>
+                  <input
+                    type="text"
+                    placeholder="Person or department receiving"
+                    value={formData.receiver}
+                    onChange={(e) => setFormData({ ...formData, receiver: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                  />
+                  {formErrors.receiver && (
+                    <p className="mt-1 text-xs text-red-600">{formErrors.receiver}</p>
+                  )}
+                </div>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold mb-2">Notes</label>
-                <input
-                  type="text"
-                  placeholder="Additional notes (optional)"
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                <label className="block text-sm font-semibold mb-2">Remarks *</label>
+                <textarea
+                  placeholder="Brief context about this transaction"
+                  value={formData.remarks}
+                  onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+                  rows={3}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
                 />
+                {formErrors.remarks && (
+                  <p className="mt-1 text-xs text-red-600">{formErrors.remarks}</p>
+                )}
               </div>
 
               <button
                 onClick={handleAddTransaction}
-                className="w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700"
+                disabled={isSyncing}
+                className={`w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700 ${isSyncing ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
-                Add Transaction
+                {isSyncing ? 'Saving...' : 'Add Transaction'}
               </button>
             </div>
           </div>
@@ -771,7 +875,9 @@ export default function AccountingSystem() {
               )}
             </div>
 
-            {filteredTransactions.length === 0 ? (
+            {isLoadingData ? (
+              <p className="text-gray-500 text-center py-8">Loading transactions...</p>
+            ) : filteredTransactions.length === 0 ? (
               <p className="text-gray-500 text-center py-8">No transactions found for the selected period</p>
             ) : (
               <div className="overflow-x-auto">
@@ -781,9 +887,10 @@ export default function AccountingSystem() {
                       <th className="px-4 py-2 text-left text-sm font-semibold">Date</th>
                       <th className="px-4 py-2 text-left text-sm font-semibold">Category</th>
                       <th className="px-4 py-2 text-left text-sm font-semibold">Subcategory</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold">Description</th>
+                      <th className="px-4 py-2 text-left text-sm font-semibold">Sender</th>
+                      <th className="px-4 py-2 text-left text-sm font-semibold">Receiver</th>
                       <th className="px-4 py-2 text-right text-sm font-semibold">Amount</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold">Notes</th>
+                      <th className="px-4 py-2 text-left text-sm font-semibold">Remarks</th>
                       <th className="px-4 py-2 text-center text-sm font-semibold">Action</th>
                     </tr>
                   </thead>
@@ -799,17 +906,19 @@ export default function AccountingSystem() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">{t.subcategory}</td>
-                        <td className="px-4 py-3 text-sm">{t.description}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700">{t.sender}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700">{t.receiver}</td>
                         <td className="px-4 py-3 text-sm text-right font-semibold">
                           <span className={t.category === 'Income' ? 'text-green-600' : 'text-red-600'}>
                             {t.category === 'Income' ? '+' : '-'}₹{t.amount.toLocaleString('en-IN')}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{t.notes}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{t.remarks}</td>
                         <td className="px-4 py-3 text-center">
                           <button
                             onClick={() => handleDeleteTransaction(t.id)}
-                            className="text-red-600 hover:text-red-800 font-semibold text-sm"
+                            disabled={isSyncing}
+                            className={`text-red-600 hover:text-red-800 font-semibold text-sm ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
                           >
                             Delete
                           </button>
@@ -841,6 +950,9 @@ export default function AccountingSystem() {
                 <Download size={18} /> Export Report
               </button>
             </div>
+            {isLoadingData && (
+              <p className="mb-4 text-sm text-gray-500">Refreshing data from the server...</p>
+            )}
 
             {/* Date Range Filter */}
             <div className="mb-6 p-4 bg-gray-50 rounded-lg">
