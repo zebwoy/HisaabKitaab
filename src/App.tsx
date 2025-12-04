@@ -55,6 +55,11 @@ interface SubcategoryOption {
   label: string;
 }
 
+interface ReceiverOption {
+  value: string;
+  label: string;
+}
+
 export default function AccountingSystem() {
   // Initialize login state from sessionStorage to persist across refreshes
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
@@ -94,6 +99,11 @@ export default function AccountingSystem() {
     return list.map((sub) => ({ value: sub, label: sub }));
   };
   const subcategoryOptions = getSubcategoryOptions();
+  const receiverOptions: ReceiverOption[] = [
+    { value: 'AbdurRauf', label: 'AbdurRauf' },
+    { value: 'Rahib', label: 'Rahib' },
+    { value: 'Ayman', label: 'Ayman' },
+  ];
 
   const fetchTransactions = useCallback(async () => {
     setIsLoadingData(true);
@@ -266,6 +276,11 @@ export default function AccountingSystem() {
     setFormData({ ...formData, subcategory: value });
   };
 
+  const handleReceiverSelect = (option: SingleValue<ReceiverOption>) => {
+    const value = option?.value ?? '';
+    setFormData({ ...formData, receiver: value });
+  };
+
   // ---- AUTH & VALIDATION ----
 
   const validateTransactionForm = () => {
@@ -286,9 +301,7 @@ export default function AccountingSystem() {
     if (!formData.receiver.trim()) {
       errors.receiver = 'Receiver is required';
     }
-    if (!formData.remarks.trim()) {
-      errors.remarks = 'Remarks are required';
-    } else if (formData.remarks.trim().length < 3) {
+    if (formData.remarks.trim() && formData.remarks.trim().length < 3) {
       errors.remarks = 'Remarks should be at least 3 characters';
     }
 
@@ -730,12 +743,21 @@ export default function AccountingSystem() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold mb-2">Receiver *</label>
-                  <input
-                    type="text"
-                    placeholder="Person or department receiving"
-                    value={formData.receiver}
-                    onChange={(e) => setFormData({ ...formData, receiver: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                  <Select<ReceiverOption>
+                    options={receiverOptions}
+                    value={receiverOptions.find((opt) => opt.value === formData.receiver) ?? null}
+                    onChange={handleReceiverSelect}
+                    classNamePrefix="hk-select"
+                    className="text-sm"
+                    placeholder="Select Receiver"
+                    styles={{
+                      control: (base) => ({
+                        ...base,
+                        borderRadius: 8,
+                        borderColor: '#d1d5db',
+                        minHeight: '36px',
+                      }),
+                    }}
                   />
                   {formErrors.receiver && (
                     <p className="mt-1 text-xs text-red-600">{formErrors.receiver}</p>
@@ -744,7 +766,7 @@ export default function AccountingSystem() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold mb-2">Remarks *</label>
+                <label className="block text-sm font-semibold mb-2">Remarks (optional)</label>                                                                           
                 <textarea
                   placeholder="Brief context about this transaction"
                   value={formData.remarks}
