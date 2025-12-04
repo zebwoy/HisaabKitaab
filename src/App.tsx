@@ -381,8 +381,7 @@ export default function AccountingSystem() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || 'Unable to save the transaction. Please try again.');
+        throw new Error('Unable to save the transaction. Please try again.');
       }
 
       const created: Transaction = await response.json();
