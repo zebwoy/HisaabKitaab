@@ -541,9 +541,19 @@ export default function AccountingSystem() {
     return `${day}${suffix} ${monthYear} (${weekday})`;
   };
 
+  const formatDisplayDateShort = (dateString: string) => {
+    const date = parseLocalDate(dateString);
+    if (!date) return dateString || '';
+    return date.toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+
   const formatPeriodLabel = () => {
     if (dateFilterMode === 'custom') {
-      return `${formatDisplayDate(dateRange.fromDate)} to ${formatDisplayDate(dateRange.toDate)}`;
+      return `${formatDisplayDateShort(dateRange.fromDate)} to ${formatDisplayDateShort(dateRange.toDate)}`;
     }
     if (dateFilterMode === 'allTime') {
       return 'All time';
@@ -569,7 +579,7 @@ export default function AccountingSystem() {
 
   const formatPreviousPeriodLabel = () => {
     if (!previousRange) return '';
-    return `Same period last year: ${formatDisplayDate(previousRange.fromDate)} to ${formatDisplayDate(previousRange.toDate)}`;
+    return `Same period last year: ${formatDisplayDateShort(previousRange.fromDate)} – ${formatDisplayDateShort(previousRange.toDate)}`;
   };
 
   // Login Screen
@@ -1257,16 +1267,16 @@ export default function AccountingSystem() {
                     <div className="space-y-2">
                       <div className="flex justify-between">
                         <span className="text-sm text-gray-600">Income:</span>
-                        <span className="font-semibold text-green-600">₹{stats.income.toLocaleString('en-IN')}</span>
+                        <span className="font-semibold text-green-600">{formatCurrency(stats.income)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-sm text-gray-600">Expenses:</span>
-                        <span className="font-semibold text-red-600">₹{stats.expenses.toLocaleString('en-IN')}</span>
+                        <span className="font-semibold text-red-600">{formatCurrency(stats.expenses)}</span>
                       </div>
                       <div className="flex justify-between border-t pt-2">
                         <span className="text-sm font-semibold text-gray-700">Balance:</span>
                         <span className={`font-bold ${stats.balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
-                          ₹{stats.balance.toLocaleString('en-IN')}
+                          {formatCurrency(stats.balance)}
                         </span>
                       </div>
                     </div>
@@ -1279,7 +1289,7 @@ export default function AccountingSystem() {
                       <div className="flex justify-between">
                         <span className="text-sm text-gray-600">Income:</span>
                         <span className="font-semibold text-green-600">
-                          ₹{previousPeriodStats.income.toLocaleString('en-IN')}
+                          {formatCurrency(previousPeriodStats.income)}
                           {previousPeriodStats.income > 0 && (
                             <span className={`text-xs ml-2 ${
                               stats.income > previousPeriodStats.income ? 'text-green-600' : 'text-red-600'
@@ -1293,7 +1303,7 @@ export default function AccountingSystem() {
                       <div className="flex justify-between">
                         <span className="text-sm text-gray-600">Expenses:</span>
                         <span className="font-semibold text-red-600">
-                          ₹{previousPeriodStats.expenses.toLocaleString('en-IN')}
+                          {formatCurrency(previousPeriodStats.expenses)}
                           {previousPeriodStats.expenses > 0 && (
                             <span className={`text-xs ml-2 ${
                               stats.expenses < previousPeriodStats.expenses ? 'text-green-600' : 'text-red-600'
@@ -1307,7 +1317,7 @@ export default function AccountingSystem() {
                       <div className="flex justify-between border-t pt-2">
                         <span className="text-sm font-semibold text-gray-700">Balance:</span>
                         <span className={`font-bold ${previousPeriodStats.balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
-                          ₹{previousPeriodStats.balance.toLocaleString('en-IN')}
+                          {formatCurrency(previousPeriodStats.balance)}
                         </span>
                       </div>
                     </div>
