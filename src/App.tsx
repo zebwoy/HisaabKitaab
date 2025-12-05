@@ -498,6 +498,7 @@ export default function AccountingSystem() {
   const stats = calculateStats(filteredTransactions);
   const allTimeStats = calculateStats(transactions);
   const previousPeriodStats = calculateStats(getPreviousPeriodTransactions());
+  const previousRange = getPreviousPeriodRange();
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('en-IN', {
@@ -538,6 +539,37 @@ export default function AccountingSystem() {
     const weekday = date.toLocaleDateString('en-IN', { weekday: 'long' });
 
     return `${day}${suffix} ${monthYear} (${weekday})`;
+  };
+
+  const formatPeriodLabel = () => {
+    if (dateFilterMode === 'custom') {
+      return `${formatDisplayDate(dateRange.fromDate)} to ${formatDisplayDate(dateRange.toDate)}`;
+    }
+    if (dateFilterMode === 'allTime') {
+      return 'All time';
+    }
+    const today = new Date();
+    if (dateFilterMode === 'thisMonth') {
+      return today.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+    }
+    if (dateFilterMode === 'thisQuarter') {
+      const q = Math.floor(today.getMonth() / 3);
+      const year = today.getFullYear();
+      const startMonth = new Date(year, q * 3, 1).toLocaleString('en-IN', { month: 'short' });
+      const endMonth = new Date(year, q * 3 + 2, 1).toLocaleString('en-IN', { month: 'short' });
+      return `Q${q + 1} ${year} (${startMonth}–${endMonth})`;
+    }
+    if (dateFilterMode === 'thisFiscalYear') {
+      const fyStartYear = today.getMonth() >= 3 ? today.getFullYear() : today.getFullYear() - 1;
+      const fyEndYear = fyStartYear + 1;
+      return `FY ${fyStartYear}-${fyEndYear}`;
+    }
+    return dateFilterMode;
+  };
+
+  const formatPreviousPeriodLabel = () => {
+    if (!previousRange) return '';
+    return `Same period last year: ${formatDisplayDate(previousRange.fromDate)} to ${formatDisplayDate(previousRange.toDate)}`;
   };
 
   // Login Screen
@@ -1214,17 +1246,13 @@ export default function AccountingSystem() {
             </div>
 
             {/* Period Comparison */}
-            {getPreviousPeriodRange() && (
+            {previousRange && (
               <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
                 <h3 className="text-lg font-bold mb-4 text-blue-700">Period Comparison</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <p className="text-sm font-semibold text-gray-700 mb-2">
-                      Current Period: {
-                        dateFilterMode === 'custom' 
-                          ? `${dateRange.fromDate} to ${dateRange.toDate}`
-                          : dateFilterMode
-                      }
+                      Current Period: {formatPeriodLabel()}
                     </p>
                     <div className="space-y-2">
                       <div className="flex justify-between">
@@ -1245,10 +1273,7 @@ export default function AccountingSystem() {
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-700 mb-2">
-                      Previous Same Period: {(() => {
-                        const prevRange = getPreviousPeriodRange();
-                        return prevRange ? `${prevRange.fromDate} to ${prevRange.toDate}` : '';
-                      })()}
+                      {formatPreviousPeriodLabel()}
                     </p>
                     <div className="space-y-2">
                       <div className="flex justify-between">
