@@ -76,6 +76,7 @@ export default function AccountingSystem() {
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [dataError, setDataError] = useState('');
+  const [receiverFilter, setReceiverFilter] = useState<string>('');
   
   // Date range filter state
   const [dateRange, setDateRange] = useState({
@@ -103,6 +104,10 @@ export default function AccountingSystem() {
     { value: 'AbdurRauf', label: 'AbdurRauf' },
     { value: 'Rahib', label: 'Rahib' },
     { value: 'Ayman', label: 'Ayman' },
+  ];
+  const receiverFilterOptions: ReceiverOption[] = [
+    { value: '', label: 'All Receivers' },
+    ...receiverOptions,
   ];
 
   const fetchTransactions = useCallback(async () => {
@@ -186,22 +191,19 @@ export default function AccountingSystem() {
   const getFilteredTransactions = (): Transaction[] => {
     let filtered = transactions;
     
-    if (dateFilterMode === 'allTime') {
-      return filtered;
+    if (receiverFilter) {
+      filtered = filtered.filter(t => t.receiver === receiverFilter);
     }
     
-    let range;
-    if (dateFilterMode === 'custom') {
-      range = dateRange;
-    } else {
-      range = getDateRangeForMode(dateFilterMode);
-    }
-    
-    if (range.fromDate) {
-      filtered = filtered.filter(t => t.date >= range.fromDate);
-    }
-    if (range.toDate) {
-      filtered = filtered.filter(t => t.date <= range.toDate);
+    if (dateFilterMode !== 'allTime') {
+      const range = dateFilterMode === 'custom' ? dateRange : getDateRangeForMode(dateFilterMode);
+      
+      if (range.fromDate) {
+        filtered = filtered.filter(t => t.date >= range.fromDate);
+      }
+      if (range.toDate) {
+        filtered = filtered.filter(t => t.date <= range.toDate);
+      }
     }
     
     return filtered;
@@ -471,6 +473,25 @@ export default function AccountingSystem() {
         return acc;
       }, [])
       .sort((a, b) => b.total - a.total);
+  };
+
+  const getReceiverStats = (transList: Transaction[]) => {
+    const map = new Map<string, { income: number; expenses: number }>();
+    transList.forEach((t) => {
+      const key = t.receiver || 'Unassigned';
+      if (!map.has(key)) {
+        map.set(key, { income: 0, expenses: 0 });
+      }
+      const entry = map.get(key)!;
+      if (t.category === 'Income') entry.income += t.amount;
+      else entry.expenses += t.amount;
+    });
+    return Array.from(map.entries()).map(([receiver, { income, expenses }]) => ({
+      receiver,
+      income,
+      expenses,
+      balance: income - expenses,
+    }));
   };
 
   const filteredTransactions = getFilteredTransactions();
@@ -909,6 +930,20 @@ export default function AccountingSystem() {
                   <Calendar size={14} /> Custom Range
                 </button>
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Receiver Filter</label>
+                  <Select
+                    options={receiverFilterOptions}
+                    value={receiverFilterOptions.find((opt) => opt.value === receiverFilter) ?? receiverFilterOptions[0]}
+                    onChange={(option) => setReceiverFilter((option as ReceiverOption | null)?.value || '')}
+                    classNamePrefix="hk-select"
+                    className="text-sm"
+                    placeholder="All Receivers"
+                  />
+                </div>
+              </div>
               
               {dateFilterMode === 'custom' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1317,6 +1352,58 @@ export default function AccountingSystem() {
                   <p className="text-gray-500 text-center py-4">No expense transactions in selected period</p>
                 )}
               </div>
+            </div>
+
+            {/* Receiver-wise Funds */}
+            <div className="mt-6">
+              <h3 className="text-lg font-bold mb-3 text-indigo-700">Receiver-wise Funds</h3>
+              {getReceiverStats(filteredTransactions).length === 0 ? (
+                <p className="text-sm text-gray-500">No receiver data for this period.</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {getReceiverStats(filteredTransactions).map((item) => (
+                    <div
+                      key={item.receiver}
+                      className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <p className="text-sm text-gray-500">Receiver</p>
+                          <p className="text-lg font-semibold text-gray-800">{item.receiver}</p>
+                        </div>
+                        <span
+                          className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                            item.balance >= 0 ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                          }`}
+                        >
+                          {item.balance >= 0 ? 'In Surplus' : 'Needs Reimbursement'}
+                        </span>
+                      </div>
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Income</span>
+                          <span className="font-semibold text-green-700">{formatCurrency(item.income)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Expenses</span>
+                          <span className="font-semibold text-red-700">{formatCurrency(item.expenses)}</span>
+                        </div>
+                        <div className="flex justify-between border-t pt-2 mt-2">
+                          <span className="text-gray-700 font-semibold">Net</span>
+                          <span className={`font-bold ${item.balance >= 0 ? 'text-blue-700' : 'text-orange-700'}`}>
+                            {formatCurrency(item.balance)}
+                          </span>
+                        </div>
+                      </div>
+                      {item.balance < 0 && (
+                        <p className="mt-2 text-xs text-orange-700">
+                          Receiver has paid beyond available funds. Reimbursement advised.
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
