@@ -666,8 +666,8 @@ export default function AccountingSystem() {
       <div className="bg-indigo-600 text-white shadow-lg">
         <div className="max-w-6xl mx-auto px-4 py-4 md:py-6 flex flex-col md:flex-row md:justify-between md:items-center gap-3">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold">Madrasah NGO Accounts</h1>
-            <p className="text-xs md:text-sm text-indigo-100">Quranic Studies - Bhiwandi</p>
+            <h1 className="text-2xl md:text-3xl font-bold">Madrasah-e-Millat Accounts</h1>
+            <p className="text-xs md:text-sm text-indigo-100">Faridbaug, Bhiwandi</p>
           </div>
           <button
             onClick={handleLogout}
