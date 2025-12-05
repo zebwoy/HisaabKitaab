@@ -489,10 +489,22 @@ export default function AccountingSystem() {
       maximumFractionDigits: 2,
     }).format(value);
 
+  const parseLocalDate = (dateString: string) => {
+    if (!dateString) return null;
+    // Parse YYYY-MM-DD as a local date to avoid UTC timezone shifts
+    const ymdMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateString);
+    if (ymdMatch) {
+      const [, y, m, d] = ymdMatch;
+      return new Date(Number(y), Number(m) - 1, Number(d));
+    }
+    const fallback = new Date(dateString);
+    return Number.isNaN(fallback.getTime()) ? null : fallback;
+  };
+
   const formatDisplayDate = (dateString: string) => {
     if (!dateString) return '';
-    const date = new Date(dateString);
-    if (Number.isNaN(date.getTime())) return dateString;
+    const date = parseLocalDate(dateString);
+    if (!date) return dateString;
 
     const day = date.getDate();
     const suffix =
