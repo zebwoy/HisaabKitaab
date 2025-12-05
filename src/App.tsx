@@ -65,8 +65,8 @@ export default function AccountingSystem() {
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     return sessionStorage.getItem('madrasah_logged_in') === 'true';
   });
-  const [password, setPassword] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [authError, setAuthError] = useState('');
@@ -123,9 +123,6 @@ export default function AccountingSystem() {
   }, []);
 
   useEffect(() => {
-    const savedPassword = localStorage.getItem('madrasah_password');
-    if (savedPassword) setPassword(savedPassword);
-    
     if (sessionStorage.getItem('madrasah_logged_in') === 'true') {
       setIsLoggedIn(true);
     }
@@ -320,19 +317,34 @@ export default function AccountingSystem() {
     return Object.keys(errors).length === 0;
   };
 
-  const handleLogin = () => {
-    if (!password) {
-      setAuthError('Please set a password first.');
+  const handleLogin = async () => {
+    if (!loginPassword.trim()) {
+      setAuthError('Enter the password');
       return;
     }
-    if (loginPassword === password) {
-      setIsLoggedIn(true);
-      setLoginPassword('');
-      setAuthError('');
-      // Save login session to persist across page refreshes
-      sessionStorage.setItem('madrasah_logged_in', 'true');
-    } else {
-      setAuthError('Incorrect password. Please try again.');
+
+    setIsAuthenticating(true);
+    setAuthError('');
+
+    try {
+      const response = await fetch('/.netlify/functions/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: loginPassword }),
+      });
+
+      if (response.ok) {
+        setIsLoggedIn(true);
+        setLoginPassword('');
+        sessionStorage.setItem('madrasah_logged_in', 'true');
+      } else {
+        const data = await response.json().catch(() => null);
+        setAuthError(data?.message || 'Incorrect password. Please try again.');
+      }
+    } catch (error) {
+      setAuthError('Unable to login right now. Please try again.');
+    } finally {
+      setIsAuthenticating(false);
     }
   };
 
@@ -341,21 +353,6 @@ export default function AccountingSystem() {
     setLoginPassword('');
     // Clear session on logout
     sessionStorage.removeItem('madrasah_logged_in');
-  };
-
-  const handleSetPassword = () => {
-    if (!loginPassword) {
-      setAuthError('Please enter a password.');
-      return;
-    }
-    if (loginPassword.length < 6) {
-      setAuthError('Password should be at least 6 characters.');
-      return;
-    }
-    setPassword(loginPassword);
-    localStorage.setItem('madrasah_password', loginPassword);
-    setAuthError('');
-    setLoginPassword('');
   };
 
   const handleAddTransaction = async () => {
@@ -525,71 +522,76 @@ export default function AccountingSystem() {
   // Login Screen
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
-          <h1 className="text-3xl font-bold text-center text-indigo-600 mb-2">Madrasah NGO</h1>
-          <p className="text-center text-gray-600 mb-8">Accounting Management System</p>
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4 py-10">
+        <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 bg-white/5 backdrop-blur-lg border border-white/10 rounded-3xl shadow-2xl overflow-hidden">
+          <div className="hidden md:flex flex-col justify-between bg-gradient-to-br from-indigo-500 via-purple-500 to-blue-600 text-white p-10">
+            <div>
+              <p className="text-sm font-medium text-white/80">Madrasah NGO</p>
+              <h1 className="text-3xl font-bold mt-2 leading-tight">Accounting & Reporting</h1>
+              <p className="mt-4 text-white/80 text-sm leading-relaxed">
+                Secure access to your finance workspace. All data stays protected;
+                passwords are validated on the server (Netlify env) and never stored in the browser.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 text-sm text-white/80">
+              <span className="h-2 w-2 rounded-full bg-emerald-300"></span>
+              Encrypted connection • Server-side auth
+            </div>
+          </div>
 
-          {!password ? (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSetPassword();
-              }}
-            >
-              <p className="text-gray-700 font-semibold mb-4">Set Initial Password</p>
-              <input
-                type="password"
-                placeholder="Enter password"
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-              {authError && (
-                <p className="text-sm text-red-600 mb-2">{authError}</p>
-              )}
-              <button
-                type="submit"
-                className="w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700"
-              >
-                Set Password
-              </button>
-            </form>
-          ) : (
+          <div className="bg-white text-slate-900 p-8 md:p-10">
+            <div className="mb-8">
+              <p className="text-sm font-semibold text-indigo-600 mb-2">Welcome back</p>
+              <h2 className="text-2xl font-bold text-slate-900">Sign in to continue</h2>
+              <p className="text-sm text-slate-500 mt-1">Use the admin password configured on Netlify.</p>
+            </div>
+
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 handleLogin();
               }}
+              className="space-y-4"
             >
-              <p className="text-gray-700 font-semibold mb-4">Enter Password</p>
-              <div className="relative mb-2">
+              <div className="relative">
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Password</label>
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Password"
+                  placeholder="Enter password"
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 bg-white"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-2.5 text-gray-500"
+                  className="absolute right-3 top-9 text-slate-400 hover:text-slate-600"
                 >
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
               </div>
+
               {authError && (
-                <p className="text-sm text-red-600 mb-2">{authError}</p>
+                <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 px-3 py-2 text-sm">
+                  {authError}
+                </div>
               )}
+
               <button
                 type="submit"
-                className="w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700"
+                disabled={isAuthenticating}
+                className={`w-full flex items-center justify-center gap-2 bg-indigo-600 text-white py-3 rounded-xl font-semibold shadow hover:bg-indigo-700 transition ${
+                  isAuthenticating ? 'opacity-80 cursor-not-allowed' : ''
+                }`}
               >
-                Login
+                {isAuthenticating ? 'Signing in...' : 'Sign in'}
               </button>
+
+              <p className="text-xs text-slate-500 text-center">
+                Password is verified securely on the server (Netlify Function) and never stored in the browser.
+              </p>
             </form>
-          )}
+          </div>
         </div>
       </div>
     );
