@@ -589,11 +589,11 @@ export default function AccountingSystem() {
         <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 bg-white/5 backdrop-blur-lg border border-white/10 rounded-3xl shadow-2xl overflow-hidden">
           <div className="hidden md:flex flex-col justify-between bg-gradient-to-br from-indigo-500 via-purple-500 to-blue-600 text-white p-10">
             <div>
-              <p className="text-sm font-medium text-white/80">Madrasah NGO</p>
+              <p className="text-sm font-medium text-white/80">Madrasah-e-Millat Bhiwandi</p>
               <h1 className="text-3xl font-bold mt-2 leading-tight">Accounting & Reporting</h1>
               <p className="mt-4 text-white/80 text-sm leading-relaxed">
                 Secure access to your finance workspace. All data stays protected;
-                passwords are validated on the server (Netlify env) and never stored in the browser.
+                passwords are validated on the server and never stored in the browser.
               </p>
             </div>
             <div className="flex items-center gap-3 text-sm text-white/80">
@@ -606,7 +606,7 @@ export default function AccountingSystem() {
             <div className="mb-8">
               <p className="text-sm font-semibold text-indigo-600 mb-2">Welcome back</p>
               <h2 className="text-2xl font-bold text-slate-900">Sign in to continue</h2>
-              <p className="text-sm text-slate-500 mt-1">Use the admin password configured on Netlify.</p>
+              <p className="text-sm text-slate-500 mt-1">Use the admin password provided.</p>
             </div>
 
             <form
@@ -651,7 +651,7 @@ export default function AccountingSystem() {
               </button>
 
               <p className="text-xs text-slate-500 text-center">
-                Password is verified securely on the server (Netlify Function) and never stored in the browser.
+                Password is verified securely on the server and never stored in the browser.
               </p>
             </form>
           </div>
