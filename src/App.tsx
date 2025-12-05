@@ -481,6 +481,35 @@ export default function AccountingSystem() {
   const allTimeStats = calculateStats(transactions);
   const previousPeriodStats = calculateStats(getPreviousPeriodTransactions());
 
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+
+  const formatDisplayDate = (dateString: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return dateString;
+
+    const day = date.getDate();
+    const suffix =
+      day === 1 || day === 21 || day === 31 ? 'st' :
+      day === 2 || day === 22 ? 'nd' :
+      day === 3 || day === 23 ? 'rd' :
+      'th';
+
+    const monthYear = date.toLocaleDateString('en-IN', {
+      month: 'long',
+      year: 'numeric',
+    });
+    const weekday = date.toLocaleDateString('en-IN', { weekday: 'long' });
+
+    return `${day}${suffix} ${monthYear} (${weekday})`;
+  };
+
   // Login Screen
   if (!isLoggedIn) {
     return (
@@ -577,22 +606,22 @@ export default function AccountingSystem() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-lg shadow p-4 md:p-6">
             <p className="text-gray-600 text-sm">Total Income (All Time)</p>
-            <p className="text-2xl font-bold text-green-600">₹{allTimeStats.income.toLocaleString('en-IN')}</p>
+            <p className="text-2xl font-bold text-green-600">{formatCurrency(allTimeStats.income)}</p>
           </div>
           <div className="bg-white rounded-lg shadow p-4 md:p-6">
             <p className="text-gray-600 text-sm">Total Expenses (All Time)</p>
-            <p className="text-2xl font-bold text-red-600">₹{allTimeStats.expenses.toLocaleString('en-IN')}</p>
+            <p className="text-2xl font-bold text-red-600">{formatCurrency(allTimeStats.expenses)}</p>
           </div>
           <div className="bg-white rounded-lg shadow p-4 md:p-6">
             <p className="text-gray-600 text-sm">Balance (All Time)</p>
             <p className={`text-2xl font-bold ${allTimeStats.balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
-              ₹{allTimeStats.balance.toLocaleString('en-IN')}
+              {formatCurrency(allTimeStats.balance)}
             </p>
           </div>
           <div className="bg-white rounded-lg shadow p-4 md:p-6">
             <p className="text-gray-600 text-sm">Current Filter Balance</p>
             <p className={`text-2xl font-bold ${stats.balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
-              ₹{stats.balance.toLocaleString('en-IN')}
+              {formatCurrency(stats.balance)}
             </p>
           </div>
         </div>
@@ -919,7 +948,7 @@ export default function AccountingSystem() {
                   <tbody>
                     {filteredTransactions.map(t => (
                       <tr key={t.id} className="border-t hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm">{t.date}</td>
+                        <td className="px-4 py-3 text-sm">{formatDisplayDate(t.date)}</td>
                         <td className="px-4 py-3 text-sm">
                           <span className={`px-2 py-1 rounded text-xs font-semibold ${
                             t.category === 'Income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
@@ -932,7 +961,7 @@ export default function AccountingSystem() {
                         <td className="px-4 py-3 text-sm text-gray-700">{t.receiver}</td>
                         <td className="px-4 py-3 text-sm text-right font-semibold">
                           <span className={t.category === 'Income' ? 'text-green-600' : 'text-red-600'}>
-                            {t.category === 'Income' ? '+' : '-'}₹{t.amount.toLocaleString('en-IN')}
+                            {t.category === 'Income' ? '+' : '-'}{formatCurrency(t.amount)}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">{t.remarks}</td>
@@ -1118,19 +1147,19 @@ export default function AccountingSystem() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="bg-green-50 rounded-lg p-6 border-l-4 border-green-600">
                 <p className="text-gray-700 font-semibold mb-2">Total Inflow</p>
-                <p className="text-2xl font-bold text-green-600">₹{stats.income.toLocaleString('en-IN')}</p>
+                 <p className="text-2xl font-bold text-green-600">{formatCurrency(stats.income)}</p>
                 <p className="text-xs text-gray-600 mt-1">Income for selected period</p>
               </div>
               <div className="bg-red-50 rounded-lg p-6 border-l-4 border-red-600">
                 <p className="text-gray-700 font-semibold mb-2">Total Outflow</p>
-                <p className="text-2xl font-bold text-red-600">₹{stats.expenses.toLocaleString('en-IN')}</p>
+                 <p className="text-2xl font-bold text-red-600">{formatCurrency(stats.expenses)}</p>
                 <p className="text-xs text-gray-600 mt-1">Expenses for selected period</p>
               </div>
               <div className={`${stats.balance >= 0 ? 'bg-blue-50 border-blue-600' : 'bg-orange-50 border-orange-600'} rounded-lg p-6 border-l-4`}>
                 <p className="text-gray-700 font-semibold mb-2">Net Position</p>
-                <p className={`text-2xl font-bold ${stats.balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
-                  ₹{stats.balance.toLocaleString('en-IN')}
-                </p>
+                 <p className={`text-2xl font-bold ${stats.balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
+                   {formatCurrency(stats.balance)}
+                 </p>
                 <p className="text-xs text-gray-600 mt-1">Inflow - Outflow</p>
               </div>
             </div>
