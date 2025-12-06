@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import {
   Plus,
   Download,
@@ -55,13 +55,18 @@ interface SubcategoryOption {
   label: string;
 }
 
+interface ReceiverOption {
+  value: string;
+  label: string;
+}
+
 export default function AccountingSystem() {
   // Initialize login state from sessionStorage to persist across refreshes
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     return sessionStorage.getItem('madrasah_logged_in') === 'true';
   });
-  const [password, setPassword] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [authError, setAuthError] = useState('');
@@ -71,6 +76,7 @@ export default function AccountingSystem() {
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [dataError, setDataError] = useState('');
+  const [receiverFilter, setReceiverFilter] = useState<string>('');
   
   // Date range filter state
   const [dateRange, setDateRange] = useState({
@@ -94,6 +100,15 @@ export default function AccountingSystem() {
     return list.map((sub) => ({ value: sub, label: sub }));
   };
   const subcategoryOptions = getSubcategoryOptions();
+  const receiverOptions: ReceiverOption[] = [
+    { value: 'AbdurRauf', label: 'AbdurRauf' },
+    { value: 'Rahib', label: 'Rahib' },
+    { value: 'Ayman', label: 'Ayman' },
+  ];
+  const receiverFilterOptions: ReceiverOption[] = [
+    { value: '', label: 'All Receivers' },
+    ...receiverOptions,
+  ];
 
   const fetchTransactions = useCallback(async () => {
     setIsLoadingData(true);
@@ -113,9 +128,6 @@ export default function AccountingSystem() {
   }, []);
 
   useEffect(() => {
-    const savedPassword = localStorage.getItem('madrasah_password');
-    if (savedPassword) setPassword(savedPassword);
-    
     if (sessionStorage.getItem('madrasah_logged_in') === 'true') {
       setIsLoggedIn(true);
     }
@@ -179,22 +191,19 @@ export default function AccountingSystem() {
   const getFilteredTransactions = (): Transaction[] => {
     let filtered = transactions;
     
-    if (dateFilterMode === 'allTime') {
-      return filtered;
+    if (receiverFilter) {
+      filtered = filtered.filter(t => t.receiver === receiverFilter);
     }
     
-    let range;
-    if (dateFilterMode === 'custom') {
-      range = dateRange;
-    } else {
-      range = getDateRangeForMode(dateFilterMode);
-    }
-    
-    if (range.fromDate) {
-      filtered = filtered.filter(t => t.date >= range.fromDate);
-    }
-    if (range.toDate) {
-      filtered = filtered.filter(t => t.date <= range.toDate);
+    if (dateFilterMode !== 'allTime') {
+      const range = dateFilterMode === 'custom' ? dateRange : getDateRangeForMode(dateFilterMode);
+      
+      if (range.fromDate) {
+        filtered = filtered.filter(t => t.date >= range.fromDate);
+      }
+      if (range.toDate) {
+        filtered = filtered.filter(t => t.date <= range.toDate);
+      }
     }
     
     return filtered;
@@ -266,6 +275,11 @@ export default function AccountingSystem() {
     setFormData({ ...formData, subcategory: value });
   };
 
+  const handleReceiverSelect = (option: SingleValue<ReceiverOption>) => {
+    const value = option?.value ?? '';
+    setFormData({ ...formData, receiver: value });
+  };
+
   // ---- AUTH & VALIDATION ----
 
   const validateTransactionForm = () => {
@@ -286,9 +300,7 @@ export default function AccountingSystem() {
     if (!formData.receiver.trim()) {
       errors.receiver = 'Receiver is required';
     }
-    if (!formData.remarks.trim()) {
-      errors.remarks = 'Remarks are required';
-    } else if (formData.remarks.trim().length < 3) {
+    if (formData.remarks.trim() && formData.remarks.trim().length < 3) {
       errors.remarks = 'Remarks should be at least 3 characters';
     }
 
@@ -307,19 +319,34 @@ export default function AccountingSystem() {
     return Object.keys(errors).length === 0;
   };
 
-  const handleLogin = () => {
-    if (!password) {
-      setAuthError('Please set a password first.');
+  const handleLogin = async () => {
+    if (!loginPassword.trim()) {
+      setAuthError('Enter the password');
       return;
     }
-    if (loginPassword === password) {
-      setIsLoggedIn(true);
-      setLoginPassword('');
-      setAuthError('');
-      // Save login session to persist across page refreshes
-      sessionStorage.setItem('madrasah_logged_in', 'true');
-    } else {
-      setAuthError('Incorrect password. Please try again.');
+
+    setIsAuthenticating(true);
+    setAuthError('');
+
+    try {
+      const response = await fetch('/.netlify/functions/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: loginPassword }),
+      });
+
+      if (response.ok) {
+        setIsLoggedIn(true);
+        setLoginPassword('');
+        sessionStorage.setItem('madrasah_logged_in', 'true');
+      } else {
+        const data = await response.json().catch(() => null);
+        setAuthError(data?.message || 'Incorrect password. Please try again.');
+      }
+    } catch (error) {
+      setAuthError('Unable to login right now. Please try again.');
+    } finally {
+      setIsAuthenticating(false);
     }
   };
 
@@ -328,21 +355,6 @@ export default function AccountingSystem() {
     setLoginPassword('');
     // Clear session on logout
     sessionStorage.removeItem('madrasah_logged_in');
-  };
-
-  const handleSetPassword = () => {
-    if (!loginPassword) {
-      setAuthError('Please enter a password.');
-      return;
-    }
-    if (loginPassword.length < 6) {
-      setAuthError('Password should be at least 6 characters.');
-      return;
-    }
-    setPassword(loginPassword);
-    localStorage.setItem('madrasah_password', loginPassword);
-    setAuthError('');
-    setLoginPassword('');
   };
 
   const handleAddTransaction = async () => {
@@ -463,79 +475,186 @@ export default function AccountingSystem() {
       .sort((a, b) => b.total - a.total);
   };
 
+  const getReceiverStats = (transList: Transaction[]) => {
+    const map = new Map<string, { income: number; expenses: number }>();
+    transList.forEach((t) => {
+      const key = t.receiver || 'Unassigned';
+      if (!map.has(key)) {
+        map.set(key, { income: 0, expenses: 0 });
+      }
+      const entry = map.get(key)!;
+      if (t.category === 'Income') entry.income += t.amount;
+      else entry.expenses += t.amount;
+    });
+    return Array.from(map.entries()).map(([receiver, { income, expenses }]) => ({
+      receiver,
+      income,
+      expenses,
+      balance: income - expenses,
+    }));
+  };
+
   const filteredTransactions = getFilteredTransactions();
   const stats = calculateStats(filteredTransactions);
   const allTimeStats = calculateStats(transactions);
   const previousPeriodStats = calculateStats(getPreviousPeriodTransactions());
+  const previousRange = getPreviousPeriodRange();
+
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+
+  const parseLocalDate = (dateString: string) => {
+    if (!dateString) return null;
+    // Parse YYYY-MM-DD as a local date to avoid UTC timezone shifts
+    const ymdMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateString);
+    if (ymdMatch) {
+      const [, y, m, d] = ymdMatch;
+      return new Date(Number(y), Number(m) - 1, Number(d));
+    }
+    const fallback = new Date(dateString);
+    return Number.isNaN(fallback.getTime()) ? null : fallback;
+  };
+
+  const formatDisplayDate = (dateString: string) => {
+    if (!dateString) return '';
+    const date = parseLocalDate(dateString);
+    if (!date) return dateString;
+
+    const day = date.getDate();
+    const suffix =
+      day === 1 || day === 21 || day === 31 ? 'st' :
+      day === 2 || day === 22 ? 'nd' :
+      day === 3 || day === 23 ? 'rd' :
+      'th';
+
+    const monthYear = date.toLocaleDateString('en-IN', {
+      month: 'long',
+      year: 'numeric',
+    });
+    const weekday = date.toLocaleDateString('en-IN', { weekday: 'long' });
+
+    return `${day}${suffix} ${monthYear} (${weekday})`;
+  };
+
+  const formatDisplayDateShort = (dateString: string) => {
+    const date = parseLocalDate(dateString);
+    if (!date) return dateString || '';
+    return date.toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+
+  const formatPeriodLabel = () => {
+    if (dateFilterMode === 'custom') {
+      return `${formatDisplayDateShort(dateRange.fromDate)} to ${formatDisplayDateShort(dateRange.toDate)}`;
+    }
+    if (dateFilterMode === 'allTime') {
+      return 'All time';
+    }
+    const today = new Date();
+    if (dateFilterMode === 'thisMonth') {
+      return today.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+    }
+    if (dateFilterMode === 'thisQuarter') {
+      const q = Math.floor(today.getMonth() / 3);
+      const year = today.getFullYear();
+      const startMonth = new Date(year, q * 3, 1).toLocaleString('en-IN', { month: 'short' });
+      const endMonth = new Date(year, q * 3 + 2, 1).toLocaleString('en-IN', { month: 'short' });
+      return `Q${q + 1} ${year} (${startMonth}ΓÇô${endMonth})`;
+    }
+    if (dateFilterMode === 'thisFiscalYear') {
+      const fyStartYear = today.getMonth() >= 3 ? today.getFullYear() : today.getFullYear() - 1;
+      const fyEndYear = fyStartYear + 1;
+      return `FY ${fyStartYear}-${fyEndYear}`;
+    }
+    return dateFilterMode;
+  };
+
+  const formatPreviousPeriodLabel = () => {
+    if (!previousRange) return '';
+    return `Same period last year: ${formatDisplayDateShort(previousRange.fromDate)} ΓÇô ${formatDisplayDateShort(previousRange.toDate)}`;
+  };
 
   // Login Screen
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
-          <h1 className="text-3xl font-bold text-center text-indigo-600 mb-2">Madrasah NGO</h1>
-          <p className="text-center text-gray-600 mb-8">Accounting Management System</p>
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4 py-10">
+        <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 bg-white/5 backdrop-blur-lg border border-white/10 rounded-3xl shadow-2xl overflow-hidden">
+          <div className="hidden md:flex flex-col justify-between bg-gradient-to-br from-indigo-500 via-purple-500 to-blue-600 text-white p-10">
+            <div>
+              <p className="text-sm font-medium text-white/80">Madrasah NGO</p>
+              <h1 className="text-3xl font-bold mt-2 leading-tight">Accounting & Reporting</h1>
+              <p className="mt-4 text-white/80 text-sm leading-relaxed">
+                Secure access to your finance workspace. All data stays protected;
+                passwords are validated on the server (Netlify env) and never stored in the browser.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 text-sm text-white/80">
+              <span className="h-2 w-2 rounded-full bg-emerald-300"></span>
+              Encrypted connection ΓÇó Server-side auth
+            </div>
+          </div>
 
-          {!password ? (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSetPassword();
-              }}
-            >
-              <p className="text-gray-700 font-semibold mb-4">Set Initial Password</p>
-              <input
-                type="password"
-                placeholder="Enter password"
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-              {authError && (
-                <p className="text-sm text-red-600 mb-2">{authError}</p>
-              )}
-              <button
-                type="submit"
-                className="w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700"
-              >
-                Set Password
-              </button>
-            </form>
-          ) : (
+          <div className="bg-white text-slate-900 p-8 md:p-10">
+            <div className="mb-8">
+              <p className="text-sm font-semibold text-indigo-600 mb-2">Welcome back</p>
+              <h2 className="text-2xl font-bold text-slate-900">Sign in to continue</h2>
+              <p className="text-sm text-slate-500 mt-1">Use the admin password configured on Netlify.</p>
+            </div>
+
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 handleLogin();
               }}
+              className="space-y-4"
             >
-              <p className="text-gray-700 font-semibold mb-4">Enter Password</p>
-              <div className="relative mb-2">
+              <div className="relative">
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Password</label>
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Password"
+                  placeholder="Enter password"
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 bg-white"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-2.5 text-gray-500"
+                  className="absolute right-3 top-9 text-slate-400 hover:text-slate-600"
                 >
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
               </div>
+
               {authError && (
-                <p className="text-sm text-red-600 mb-2">{authError}</p>
+                <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 px-3 py-2 text-sm">
+                  {authError}
+                </div>
               )}
+
               <button
                 type="submit"
-                className="w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700"
+                disabled={isAuthenticating}
+                className={`w-full flex items-center justify-center gap-2 bg-indigo-600 text-white py-3 rounded-xl font-semibold shadow hover:bg-indigo-700 transition ${
+                  isAuthenticating ? 'opacity-80 cursor-not-allowed' : ''
+                }`}
               >
-                Login
+                {isAuthenticating ? 'Signing in...' : 'Sign in'}
               </button>
+
+              <p className="text-xs text-slate-500 text-center">
+                Password is verified securely on the server (Netlify Function) and never stored in the browser.
+              </p>
             </form>
-          )}
+          </div>
         </div>
       </div>
     );
@@ -547,8 +666,8 @@ export default function AccountingSystem() {
       <div className="bg-indigo-600 text-white shadow-lg">
         <div className="max-w-6xl mx-auto px-4 py-4 md:py-6 flex flex-col md:flex-row md:justify-between md:items-center gap-3">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold">Madrasah-e-Millat Bhiwandi</h1>
-            <p className="text-xs md:text-sm text-indigo-100">Accounts | Reporting | Reconciliation</p>
+            <h1 className="text-2xl md:text-3xl font-bold">Madrasah NGO Accounts</h1>
+            <p className="text-xs md:text-sm text-indigo-100">Quranic Studies - Bhiwandi</p>
           </div>
           <button
             onClick={handleLogout}
@@ -564,22 +683,22 @@ export default function AccountingSystem() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-lg shadow p-4 md:p-6">
             <p className="text-gray-600 text-sm">Total Income (All Time)</p>
-            <p className="text-2xl font-bold text-green-600">₹{allTimeStats.income.toLocaleString('en-IN')}</p>
+            <p className="text-2xl font-bold text-green-600">{formatCurrency(allTimeStats.income)}</p>
           </div>
           <div className="bg-white rounded-lg shadow p-4 md:p-6">
             <p className="text-gray-600 text-sm">Total Expenses (All Time)</p>
-            <p className="text-2xl font-bold text-red-600">₹{allTimeStats.expenses.toLocaleString('en-IN')}</p>
+            <p className="text-2xl font-bold text-red-600">{formatCurrency(allTimeStats.expenses)}</p>
           </div>
           <div className="bg-white rounded-lg shadow p-4 md:p-6">
             <p className="text-gray-600 text-sm">Balance (All Time)</p>
             <p className={`text-2xl font-bold ${allTimeStats.balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
-              ₹{allTimeStats.balance.toLocaleString('en-IN')}
+              {formatCurrency(allTimeStats.balance)}
             </p>
           </div>
           <div className="bg-white rounded-lg shadow p-4 md:p-6">
             <p className="text-gray-600 text-sm">Current Filter Balance</p>
             <p className={`text-2xl font-bold ${stats.balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
-              ₹{stats.balance.toLocaleString('en-IN')}
+              {formatCurrency(stats.balance)}
             </p>
           </div>
         </div>
@@ -699,7 +818,7 @@ export default function AccountingSystem() {
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-2">Amount (₹) *</label>
+                  <label className="block text-sm font-semibold mb-2">Amount (Γé╣) *</label>
                   <input
                     type="number"
                     step="0.01"
@@ -730,12 +849,21 @@ export default function AccountingSystem() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold mb-2">Receiver *</label>
-                  <input
-                    type="text"
-                    placeholder="Person or department receiving"
-                    value={formData.receiver}
-                    onChange={(e) => setFormData({ ...formData, receiver: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                  <Select<ReceiverOption>
+                    options={receiverOptions}
+                    value={receiverOptions.find((opt) => opt.value === formData.receiver) ?? null}
+                    onChange={handleReceiverSelect}
+                    classNamePrefix="hk-select"
+                    className="text-sm"
+                    placeholder="Select Receiver"
+                    styles={{
+                      control: (base) => ({
+                        ...base,
+                        borderRadius: 8,
+                        borderColor: '#d1d5db',
+                        minHeight: '36px',
+                      }),
+                    }}
                   />
                   {formErrors.receiver && (
                     <p className="mt-1 text-xs text-red-600">{formErrors.receiver}</p>
@@ -744,7 +872,7 @@ export default function AccountingSystem() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold mb-2">Remarks *</label>
+                <label className="block text-sm font-semibold mb-2">Remarks (optional)</label>                                                                           
                 <textarea
                   placeholder="Brief context about this transaction"
                   value={formData.remarks}
@@ -844,6 +972,20 @@ export default function AccountingSystem() {
                   <Calendar size={14} /> Custom Range
                 </button>
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Receiver Filter</label>
+                  <Select
+                    options={receiverFilterOptions}
+                    value={receiverFilterOptions.find((opt) => opt.value === receiverFilter) ?? receiverFilterOptions[0]}
+                    onChange={(option) => setReceiverFilter((option as ReceiverOption | null)?.value || '')}
+                    classNamePrefix="hk-select"
+                    className="text-sm"
+                    placeholder="All Receivers"
+                  />
+                </div>
+              </div>
               
               {dateFilterMode === 'custom' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -897,7 +1039,7 @@ export default function AccountingSystem() {
                   <tbody>
                     {filteredTransactions.map(t => (
                       <tr key={t.id} className="border-t hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm">{t.date}</td>
+                        <td className="px-4 py-3 text-sm">{formatDisplayDate(t.date)}</td>
                         <td className="px-4 py-3 text-sm">
                           <span className={`px-2 py-1 rounded text-xs font-semibold ${
                             t.category === 'Income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
@@ -910,7 +1052,7 @@ export default function AccountingSystem() {
                         <td className="px-4 py-3 text-sm text-gray-700">{t.receiver}</td>
                         <td className="px-4 py-3 text-sm text-right font-semibold">
                           <span className={t.category === 'Income' ? 'text-green-600' : 'text-red-600'}>
-                            {t.category === 'Income' ? '+' : '-'}₹{t.amount.toLocaleString('en-IN')}
+                            {t.category === 'Income' ? '+' : '-'}{formatCurrency(t.amount)}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">{t.remarks}</td>
@@ -1085,7 +1227,7 @@ export default function AccountingSystem() {
                       {stats.balance >= 0 ? 'SURPLUS' : 'DEFICIT'}
                     </p>
                     <p className="text-3xl font-bold">
-                      ₹{Math.abs(stats.balance).toLocaleString('en-IN')}
+                      Γé╣{Math.abs(stats.balance).toLocaleString('en-IN')}
                     </p>
                   </div>
                 </div>
@@ -1096,65 +1238,58 @@ export default function AccountingSystem() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="bg-green-50 rounded-lg p-6 border-l-4 border-green-600">
                 <p className="text-gray-700 font-semibold mb-2">Total Inflow</p>
-                <p className="text-2xl font-bold text-green-600">₹{stats.income.toLocaleString('en-IN')}</p>
+                 <p className="text-2xl font-bold text-green-600">{formatCurrency(stats.income)}</p>
                 <p className="text-xs text-gray-600 mt-1">Income for selected period</p>
               </div>
               <div className="bg-red-50 rounded-lg p-6 border-l-4 border-red-600">
                 <p className="text-gray-700 font-semibold mb-2">Total Outflow</p>
-                <p className="text-2xl font-bold text-red-600">₹{stats.expenses.toLocaleString('en-IN')}</p>
+                 <p className="text-2xl font-bold text-red-600">{formatCurrency(stats.expenses)}</p>
                 <p className="text-xs text-gray-600 mt-1">Expenses for selected period</p>
               </div>
               <div className={`${stats.balance >= 0 ? 'bg-blue-50 border-blue-600' : 'bg-orange-50 border-orange-600'} rounded-lg p-6 border-l-4`}>
                 <p className="text-gray-700 font-semibold mb-2">Net Position</p>
-                <p className={`text-2xl font-bold ${stats.balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
-                  ₹{stats.balance.toLocaleString('en-IN')}
-                </p>
+                 <p className={`text-2xl font-bold ${stats.balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
+                   {formatCurrency(stats.balance)}
+                 </p>
                 <p className="text-xs text-gray-600 mt-1">Inflow - Outflow</p>
               </div>
             </div>
 
             {/* Period Comparison */}
-            {getPreviousPeriodRange() && (
+            {previousRange && (
               <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
                 <h3 className="text-lg font-bold mb-4 text-blue-700">Period Comparison</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <p className="text-sm font-semibold text-gray-700 mb-2">
-                      Current Period: {
-                        dateFilterMode === 'custom' 
-                          ? `${dateRange.fromDate} to ${dateRange.toDate}`
-                          : dateFilterMode
-                      }
+                      Current Period: {formatPeriodLabel()}
                     </p>
                     <div className="space-y-2">
                       <div className="flex justify-between">
                         <span className="text-sm text-gray-600">Income:</span>
-                        <span className="font-semibold text-green-600">₹{stats.income.toLocaleString('en-IN')}</span>
+                        <span className="font-semibold text-green-600">{formatCurrency(stats.income)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-sm text-gray-600">Expenses:</span>
-                        <span className="font-semibold text-red-600">₹{stats.expenses.toLocaleString('en-IN')}</span>
+                        <span className="font-semibold text-red-600">{formatCurrency(stats.expenses)}</span>
                       </div>
                       <div className="flex justify-between border-t pt-2">
                         <span className="text-sm font-semibold text-gray-700">Balance:</span>
                         <span className={`font-bold ${stats.balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
-                          ₹{stats.balance.toLocaleString('en-IN')}
+                          {formatCurrency(stats.balance)}
                         </span>
                       </div>
                     </div>
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-700 mb-2">
-                      Previous Same Period: {(() => {
-                        const prevRange = getPreviousPeriodRange();
-                        return prevRange ? `${prevRange.fromDate} to ${prevRange.toDate}` : '';
-                      })()}
+                      {formatPreviousPeriodLabel()}
                     </p>
                     <div className="space-y-2">
                       <div className="flex justify-between">
                         <span className="text-sm text-gray-600">Income:</span>
                         <span className="font-semibold text-green-600">
-                          ₹{previousPeriodStats.income.toLocaleString('en-IN')}
+                          {formatCurrency(previousPeriodStats.income)}
                           {previousPeriodStats.income > 0 && (
                             <span className={`text-xs ml-2 ${
                               stats.income > previousPeriodStats.income ? 'text-green-600' : 'text-red-600'
@@ -1168,7 +1303,7 @@ export default function AccountingSystem() {
                       <div className="flex justify-between">
                         <span className="text-sm text-gray-600">Expenses:</span>
                         <span className="font-semibold text-red-600">
-                          ₹{previousPeriodStats.expenses.toLocaleString('en-IN')}
+                          {formatCurrency(previousPeriodStats.expenses)}
                           {previousPeriodStats.expenses > 0 && (
                             <span className={`text-xs ml-2 ${
                               stats.expenses < previousPeriodStats.expenses ? 'text-green-600' : 'text-red-600'
@@ -1182,7 +1317,7 @@ export default function AccountingSystem() {
                       <div className="flex justify-between border-t pt-2">
                         <span className="text-sm font-semibold text-gray-700">Balance:</span>
                         <span className={`font-bold ${previousPeriodStats.balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
-                          ₹{previousPeriodStats.balance.toLocaleString('en-IN')}
+                          {formatCurrency(previousPeriodStats.balance)}
                         </span>
                       </div>
                     </div>
@@ -1205,7 +1340,7 @@ export default function AccountingSystem() {
                         <div key={item.sub} className="bg-green-50 rounded-lg p-3">
                           <div className="flex justify-between items-center mb-1">
                             <span className="font-semibold text-gray-700">{item.sub}</span>
-                            <span className="font-bold text-green-600">₹{item.total.toLocaleString('en-IN')}</span>
+                            <span className="font-bold text-green-600">Γé╣{item.total.toLocaleString('en-IN')}</span>
                           </div>
                           <div className="w-full bg-green-200 rounded-full h-2">
                             <div 
@@ -1213,7 +1348,7 @@ export default function AccountingSystem() {
                               style={{ width: `${percentage}%` }}
                             ></div>
                           </div>
-                          <p className="text-xs text-gray-600 mt-1">{percentage}% of total income • {item.count} transaction{item.count !== 1 ? 's' : ''}</p>
+                          <p className="text-xs text-gray-600 mt-1">{percentage}% of total income ΓÇó {item.count} transaction{item.count !== 1 ? 's' : ''}</p>
                         </div>
                       );
                     })}
@@ -1235,7 +1370,7 @@ export default function AccountingSystem() {
                         <div key={item.sub} className="bg-red-50 rounded-lg p-3">
                           <div className="flex justify-between items-center mb-1">
                             <span className="font-semibold text-gray-700">{item.sub}</span>
-                            <span className="font-bold text-red-600">₹{item.total.toLocaleString('en-IN')}</span>
+                            <span className="font-bold text-red-600">Γé╣{item.total.toLocaleString('en-IN')}</span>
                           </div>
                           <div className="w-full bg-red-200 rounded-full h-2">
                             <div 
@@ -1243,7 +1378,7 @@ export default function AccountingSystem() {
                               style={{ width: `${percentage}%` }}
                             ></div>
                           </div>
-                          <p className="text-xs text-gray-600 mt-1">{percentage}% of total expenses • {item.count} transaction{item.count !== 1 ? 's' : ''}</p>
+                          <p className="text-xs text-gray-600 mt-1">{percentage}% of total expenses ΓÇó {item.count} transaction{item.count !== 1 ? 's' : ''}</p>
                         </div>
                       );
                     })}
@@ -1252,6 +1387,58 @@ export default function AccountingSystem() {
                   <p className="text-gray-500 text-center py-4">No expense transactions in selected period</p>
                 )}
               </div>
+            </div>
+
+            {/* Receiver-wise Funds */}
+            <div className="mt-6">
+              <h3 className="text-lg font-bold mb-3 text-indigo-700">Receiver-wise Funds</h3>
+              {getReceiverStats(filteredTransactions).length === 0 ? (
+                <p className="text-sm text-gray-500">No receiver data for this period.</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {getReceiverStats(filteredTransactions).map((item) => (
+                    <div
+                      key={item.receiver}
+                      className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <p className="text-sm text-gray-500">Receiver</p>
+                          <p className="text-lg font-semibold text-gray-800">{item.receiver}</p>
+                        </div>
+                        <span
+                          className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                            item.balance >= 0 ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                          }`}
+                        >
+                          {item.balance >= 0 ? 'In Surplus' : 'Needs Reimbursement'}
+                        </span>
+                      </div>
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Income</span>
+                          <span className="font-semibold text-green-700">{formatCurrency(item.income)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Expenses</span>
+                          <span className="font-semibold text-red-700">{formatCurrency(item.expenses)}</span>
+                        </div>
+                        <div className="flex justify-between border-t pt-2 mt-2">
+                          <span className="text-gray-700 font-semibold">Net</span>
+                          <span className={`font-bold ${item.balance >= 0 ? 'text-blue-700' : 'text-orange-700'}`}>
+                            {formatCurrency(item.balance)}
+                          </span>
+                        </div>
+                      </div>
+                      {item.balance < 0 && (
+                        <p className="mt-2 text-xs text-orange-700">
+                          Receiver has paid beyond available funds. Reimbursement advised.
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
