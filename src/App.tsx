@@ -818,7 +818,7 @@ export default function AccountingSystem() {
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-2">Amount (Γé╣) *</label>
+                  <label className="block text-sm font-semibold mb-2">Amount (₹╣) *</label>
                   <input
                     type="number"
                     step="0.01"
@@ -1227,7 +1227,7 @@ export default function AccountingSystem() {
                       {stats.balance >= 0 ? 'SURPLUS' : 'DEFICIT'}
                     </p>
                     <p className="text-3xl font-bold">
-                      Γé╣{Math.abs(stats.balance).toLocaleString('en-IN')}
+                      ₹╣{Math.abs(stats.balance).toLocaleString('en-IN')}
                     </p>
                   </div>
                 </div>
@@ -1340,7 +1340,7 @@ export default function AccountingSystem() {
                         <div key={item.sub} className="bg-green-50 rounded-lg p-3">
                           <div className="flex justify-between items-center mb-1">
                             <span className="font-semibold text-gray-700">{item.sub}</span>
-                            <span className="font-bold text-green-600">Γé╣{item.total.toLocaleString('en-IN')}</span>
+                            <span className="font-bold text-green-600">₹╣{item.total.toLocaleString('en-IN')}</span>
                           </div>
                           <div className="w-full bg-green-200 rounded-full h-2">
                             <div 
@@ -1370,7 +1370,7 @@ export default function AccountingSystem() {
                         <div key={item.sub} className="bg-red-50 rounded-lg p-3">
                           <div className="flex justify-between items-center mb-1">
                             <span className="font-semibold text-gray-700">{item.sub}</span>
-                            <span className="font-bold text-red-600">Γé╣{item.total.toLocaleString('en-IN')}</span>
+                            <span className="font-bold text-red-600">₹╣{item.total.toLocaleString('en-IN')}</span>
                           </div>
                           <div className="w-full bg-red-200 rounded-full h-2">
                             <div 
