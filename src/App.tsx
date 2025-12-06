@@ -77,7 +77,7 @@ export default function AccountingSystem() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [dataError, setDataError] = useState('');
   const [receiverFilter, setReceiverFilter] = useState<string>('');
-  
+
   // Date range filter state
   const [dateRange, setDateRange] = useState({
     fromDate: '',
@@ -131,7 +131,7 @@ export default function AccountingSystem() {
     if (sessionStorage.getItem('madrasah_logged_in') === 'true') {
       setIsLoggedIn(true);
     }
-    
+
     const today = new Date();
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
     const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
@@ -148,7 +148,7 @@ export default function AccountingSystem() {
   // Helper function to get date range based on filter mode
   const getDateRangeForMode = (mode: 'thisMonth' | 'thisQuarter' | 'thisFiscalYear' | 'allTime' | 'custom') => {
     const today = new Date();
-    
+
     switch (mode) {
       case 'thisMonth': {
         const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -169,7 +169,7 @@ export default function AccountingSystem() {
       }
       case 'thisFiscalYear': {
         // India fiscal year: April 1 to March 31
-        const fiscalYearStart = today.getMonth() >= 3 
+        const fiscalYearStart = today.getMonth() >= 3
           ? new Date(today.getFullYear(), 3, 1)  // April 1 of current year
           : new Date(today.getFullYear() - 1, 3, 1);  // April 1 of previous year
         const fiscalYearEnd = today.getMonth() >= 3
@@ -190,14 +190,14 @@ export default function AccountingSystem() {
   // Helper function to filter transactions by date range
   const getFilteredTransactions = (): Transaction[] => {
     let filtered = transactions;
-    
+
     if (receiverFilter) {
       filtered = filtered.filter(t => t.receiver === receiverFilter);
     }
-    
+
     if (dateFilterMode !== 'allTime') {
       const range = dateFilterMode === 'custom' ? dateRange : getDateRangeForMode(dateFilterMode);
-      
+
       if (range.fromDate) {
         filtered = filtered.filter(t => t.date >= range.fromDate);
       }
@@ -205,35 +205,35 @@ export default function AccountingSystem() {
         filtered = filtered.filter(t => t.date <= range.toDate);
       }
     }
-    
+
     return filtered;
   };
 
   // Helper function to get previous period for comparison
   const getPreviousPeriodRange = () => {
     let currentRange;
-    
+
     if (dateFilterMode === 'custom') {
       currentRange = dateRange;
     } else {
       currentRange = getDateRangeForMode(dateFilterMode);
     }
-    
+
     if (!currentRange.fromDate || !currentRange.toDate) {
       return null;
     }
-    
+
     const fromDate = new Date(currentRange.fromDate);
     const toDate = new Date(currentRange.toDate);
     const diffMs = toDate.getTime() - fromDate.getTime();
     const daysDiff = Math.ceil(diffMs / (1000 * 60 * 60 * 24)) + 1;
-    
+
     const prevFromDate = new Date(fromDate);
     prevFromDate.setFullYear(prevFromDate.getFullYear() - 1);
-    
+
     const prevToDate = new Date(prevFromDate);
     prevToDate.setDate(prevToDate.getDate() + daysDiff - 1);
-    
+
     return {
       fromDate: prevFromDate.toISOString().split('T')[0],
       toDate: prevToDate.toISOString().split('T')[0]
@@ -244,8 +244,8 @@ export default function AccountingSystem() {
   const getPreviousPeriodTransactions = (): Transaction[] => {
     const prevRange = getPreviousPeriodRange();
     if (!prevRange) return [];
-    
-    return transactions.filter(t => 
+
+    return transactions.filter(t =>
       t.date >= prevRange.fromDate && t.date <= prevRange.toDate
     );
   };
@@ -421,11 +421,11 @@ export default function AccountingSystem() {
   const calculateStats = (trans: Transaction[]) => {
     const income = trans
       .filter(t => t.category === 'Income')
-      .reduce((sum, t) => sum + t.amount, 0);
-    
+      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
     const expenses = trans
       .filter(t => t.category === 'Expense')
-      .reduce((sum, t) => sum + t.amount, 0);
+      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
     return { income, expenses, balance: income - expenses };
   };
@@ -443,12 +443,12 @@ export default function AccountingSystem() {
       t.remarks || ''
     ]);
 
-    const dateRangeStr = dateFilterMode === 'custom' 
+    const dateRangeStr = dateFilterMode === 'custom'
       ? `${dateRange.fromDate}_to_${dateRange.toDate}`
       : dateFilterMode;
-    
+
     const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
-    
+
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -465,10 +465,10 @@ export default function AccountingSystem() {
       .reduce<BreakdownRow[]>((acc, t) => {
         const existing = acc.find((x) => x.sub === t.subcategory);
         if (existing) {
-          existing.total += t.amount;
+          existing.total += (Number(t.amount) || 0);
           existing.count += 1;
         } else {
-          acc.push({ sub: t.subcategory, total: t.amount, count: 1 });
+          acc.push({ sub: t.subcategory, total: (Number(t.amount) || 0), count: 1 });
         }
         return acc;
       }, [])
@@ -483,8 +483,8 @@ export default function AccountingSystem() {
         map.set(key, { income: 0, expenses: 0 });
       }
       const entry = map.get(key)!;
-      if (t.category === 'Income') entry.income += t.amount;
-      else entry.expenses += t.amount;
+      if (t.category === 'Income') entry.income += (Number(t.amount) || 0);
+      else entry.expenses += (Number(t.amount) || 0);
     });
     return Array.from(map.entries()).map(([receiver, { income, expenses }]) => ({
       receiver,
@@ -500,13 +500,16 @@ export default function AccountingSystem() {
   const previousPeriodStats = calculateStats(getPreviousPeriodTransactions());
   const previousRange = getPreviousPeriodRange();
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('en-IN', {
+  const formatCurrency = (value: number) => {
+    const n = Number(value);
+    const safe = Number.isFinite(n) ? n : 0;
+    return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }).format(value);
+    }).format(safe);
+  };
 
   const parseLocalDate = (dateString: string) => {
     if (!dateString) return null;
@@ -528,9 +531,9 @@ export default function AccountingSystem() {
     const day = date.getDate();
     const suffix =
       day === 1 || day === 21 || day === 31 ? 'st' :
-      day === 2 || day === 22 ? 'nd' :
-      day === 3 || day === 23 ? 'rd' :
-      'th';
+        day === 2 || day === 22 ? 'nd' :
+          day === 3 || day === 23 ? 'rd' :
+            'th';
 
     const monthYear = date.toLocaleDateString('en-IN', {
       month: 'long',
@@ -567,7 +570,7 @@ export default function AccountingSystem() {
       const year = today.getFullYear();
       const startMonth = new Date(year, q * 3, 1).toLocaleString('en-IN', { month: 'short' });
       const endMonth = new Date(year, q * 3 + 2, 1).toLocaleString('en-IN', { month: 'short' });
-      return `Q${q + 1} ${year} (${startMonth}ΓÇô${endMonth})`;
+      return `Q${q + 1} ${year} (${startMonth} – ${endMonth})`;
     }
     if (dateFilterMode === 'thisFiscalYear') {
       const fyStartYear = today.getMonth() >= 3 ? today.getFullYear() : today.getFullYear() - 1;
@@ -579,7 +582,7 @@ export default function AccountingSystem() {
 
   const formatPreviousPeriodLabel = () => {
     if (!previousRange) return '';
-    return `Same period last year: ${formatDisplayDateShort(previousRange.fromDate)} ΓÇô ${formatDisplayDateShort(previousRange.toDate)}`;
+    return `Same period last year: ${formatDisplayDateShort(previousRange.fromDate)} – ${formatDisplayDateShort(previousRange.toDate)}`;
   };
 
   // Login Screen
@@ -589,16 +592,16 @@ export default function AccountingSystem() {
         <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 bg-white/5 backdrop-blur-lg border border-white/10 rounded-3xl shadow-2xl overflow-hidden">
           <div className="hidden md:flex flex-col justify-between bg-gradient-to-br from-indigo-500 via-purple-500 to-blue-600 text-white p-10">
             <div>
-              <p className="text-sm font-medium text-white/80">Madrasah NGO</p>
+              <p className="text-sm font-medium text-white/80">Madrasah-e-Millat Bhiwandi</p>
               <h1 className="text-3xl font-bold mt-2 leading-tight">Accounting & Reporting</h1>
               <p className="mt-4 text-white/80 text-sm leading-relaxed">
                 Secure access to your finance workspace. All data stays protected;
-                passwords are validated on the server (Netlify env) and never stored in the browser.
+                passwords are validated on the server and never stored in the browser.
               </p>
             </div>
             <div className="flex items-center gap-3 text-sm text-white/80">
               <span className="h-2 w-2 rounded-full bg-emerald-300"></span>
-              Encrypted connection ΓÇó Server-side auth
+              Encrypted connection • Server-side auth
             </div>
           </div>
 
@@ -606,7 +609,7 @@ export default function AccountingSystem() {
             <div className="mb-8">
               <p className="text-sm font-semibold text-indigo-600 mb-2">Welcome back</p>
               <h2 className="text-2xl font-bold text-slate-900">Sign in to continue</h2>
-              <p className="text-sm text-slate-500 mt-1">Use the admin password configured on Netlify.</p>
+              <p className="text-sm text-slate-500 mt-1">Use the admin password provided.</p>
             </div>
 
             <form
@@ -643,15 +646,14 @@ export default function AccountingSystem() {
               <button
                 type="submit"
                 disabled={isAuthenticating}
-                className={`w-full flex items-center justify-center gap-2 bg-indigo-600 text-white py-3 rounded-xl font-semibold shadow hover:bg-indigo-700 transition ${
-                  isAuthenticating ? 'opacity-80 cursor-not-allowed' : ''
-                }`}
+                className={`w-full flex items-center justify-center gap-2 bg-indigo-600 text-white py-3 rounded-xl font-semibold shadow hover:bg-indigo-700 transition ${isAuthenticating ? 'opacity-80 cursor-not-allowed' : ''
+                  }`}
               >
                 {isAuthenticating ? 'Signing in...' : 'Sign in'}
               </button>
 
               <p className="text-xs text-slate-500 text-center">
-                Password is verified securely on the server (Netlify Function) and never stored in the browser.
+                Password is verified securely on the server and never stored in the browser.
               </p>
             </form>
           </div>
@@ -666,8 +668,8 @@ export default function AccountingSystem() {
       <div className="bg-indigo-600 text-white shadow-lg">
         <div className="max-w-6xl mx-auto px-4 py-4 md:py-6 flex flex-col md:flex-row md:justify-between md:items-center gap-3">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold">Madrasah NGO Accounts</h1>
-            <p className="text-xs md:text-sm text-indigo-100">Quranic Studies - Bhiwandi</p>
+            <h1 className="text-2xl md:text-3xl font-bold">Madrasah-e-Millat Bhiwandi</h1>
+            <p className="text-xs md:text-sm text-indigo-100">Accounts | Reporting | Reconciliation</p>
           </div>
           <button
             onClick={handleLogout}
@@ -718,31 +720,28 @@ export default function AccountingSystem() {
         <div className="flex flex-wrap gap-2 mb-6">
           <button
             onClick={() => setActiveTab('add')}
-            className={`px-4 py-2 rounded-lg font-semibold flex items-center gap-2 ${
-              activeTab === 'add'
+            className={`px-4 py-2 rounded-lg font-semibold flex items-center gap-2 ${activeTab === 'add'
                 ? 'bg-indigo-600 text-white'
                 : 'bg-white text-gray-700 border border-gray-300'
-            }`}
+              }`}
           >
             <Plus size={18} /> Add Transaction
           </button>
           <button
             onClick={() => setActiveTab('view')}
-            className={`px-4 py-2 rounded-lg font-semibold ${
-              activeTab === 'view'
+            className={`px-4 py-2 rounded-lg font-semibold ${activeTab === 'view'
                 ? 'bg-indigo-600 text-white'
                 : 'bg-white text-gray-700 border border-gray-300'
-            }`}
+              }`}
           >
             View Transactions
           </button>
           <button
             onClick={() => setActiveTab('report')}
-            className={`px-4 py-2 rounded-lg font-semibold ${
-              activeTab === 'report'
+            className={`px-4 py-2 rounded-lg font-semibold ${activeTab === 'report'
                 ? 'bg-indigo-600 text-white'
                 : 'bg-white text-gray-700 border border-gray-300'
-            }`}
+              }`}
           >
             Financial Reports
           </button>
@@ -818,7 +817,7 @@ export default function AccountingSystem() {
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-2">Amount (₹╣) *</label>
+                  <label className="block text-sm font-semibold mb-2">Amount (₹) *</label>
                   <input
                     type="number"
                     step="0.01"
@@ -835,10 +834,16 @@ export default function AccountingSystem() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold mb-2">Sender *</label>
+                  <label className="block text-sm font-semibold mb-2">
+                    {formData.category === 'Income' ? 'Sender *' : 'Receiver *'}
+                  </label>
                   <input
                     type="text"
-                    placeholder="Name or entity sending funds"
+                    placeholder={
+                      formData.category === 'Income'
+                        ? 'Name or entity sending funds'
+                        : 'Name or entity receiving funds'
+                    }
                     value={formData.sender}
                     onChange={(e) => setFormData({ ...formData, sender: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
@@ -848,14 +853,16 @@ export default function AccountingSystem() {
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-2">Receiver *</label>
+                  <label className="block text-sm font-semibold mb-2">
+                    {formData.category === 'Income' ? 'Receiver *' : 'Sender *'}
+                  </label>
                   <Select<ReceiverOption>
                     options={receiverOptions}
                     value={receiverOptions.find((opt) => opt.value === formData.receiver) ?? null}
                     onChange={handleReceiverSelect}
                     classNamePrefix="hk-select"
                     className="text-sm"
-                    placeholder="Select Receiver"
+                    placeholder={formData.category === 'Income' ? 'Select Receiver' : 'Select Sender'}
                     styles={{
                       control: (base) => ({
                         ...base,
@@ -872,7 +879,7 @@ export default function AccountingSystem() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold mb-2">Remarks (optional)</label>                                                                           
+                <label className="block text-sm font-semibold mb-2">Remarks (optional)</label>
                 <textarea
                   placeholder="Brief context about this transaction"
                   value={formData.remarks}
@@ -914,41 +921,37 @@ export default function AccountingSystem() {
               <div className="flex flex-wrap gap-2 mb-4">
                 <button
                   onClick={() => handleQuickFilter('thisMonth')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
-                    dateFilterMode === 'thisMonth'
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${dateFilterMode === 'thisMonth'
                       ? 'bg-indigo-600 text-white'
                       : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   This Month
                 </button>
                 <button
                   onClick={() => handleQuickFilter('thisQuarter')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
-                    dateFilterMode === 'thisQuarter'
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${dateFilterMode === 'thisQuarter'
                       ? 'bg-indigo-600 text-white'
                       : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   This Quarter
                 </button>
                 <button
                   onClick={() => handleQuickFilter('thisFiscalYear')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
-                    dateFilterMode === 'thisFiscalYear'
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${dateFilterMode === 'thisFiscalYear'
                       ? 'bg-indigo-600 text-white'
                       : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   This Fiscal Year
                 </button>
                 <button
                   onClick={() => handleQuickFilter('allTime')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
-                    dateFilterMode === 'allTime'
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${dateFilterMode === 'allTime'
                       ? 'bg-indigo-600 text-white'
                       : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   All Time
                 </button>
@@ -963,11 +966,10 @@ export default function AccountingSystem() {
                     }
                     setDateFilterMode('custom');
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1 ${
-                    dateFilterMode === 'custom'
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1 ${dateFilterMode === 'custom'
                       ? 'bg-indigo-600 text-white'
                       : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   <Calendar size={14} /> Custom Range
                 </button>
@@ -986,7 +988,7 @@ export default function AccountingSystem() {
                   />
                 </div>
               </div>
-              
+
               {dateFilterMode === 'custom' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -1041,9 +1043,8 @@ export default function AccountingSystem() {
                       <tr key={t.id} className="border-t hover:bg-gray-50">
                         <td className="px-4 py-3 text-sm">{formatDisplayDate(t.date)}</td>
                         <td className="px-4 py-3 text-sm">
-                          <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                            t.category === 'Income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
+                          <span className={`px-2 py-1 rounded text-xs font-semibold ${t.category === 'Income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
                             {t.category}
                           </span>
                         </td>
@@ -1052,7 +1053,7 @@ export default function AccountingSystem() {
                         <td className="px-4 py-3 text-sm text-gray-700">{t.receiver}</td>
                         <td className="px-4 py-3 text-sm text-right font-semibold">
                           <span className={t.category === 'Income' ? 'text-green-600' : 'text-red-600'}>
-                            {t.category === 'Income' ? '+' : '-'}{formatCurrency(t.amount)}
+                            {t.category === 'Income' ? '+' : '-'}{formatCurrency(Number(t.amount))}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">{t.remarks}</td>
@@ -1081,7 +1082,7 @@ export default function AccountingSystem() {
               <div>
                 <h2 className="text-2xl font-bold">Financial Report</h2>
                 <p className="text-sm text-gray-600 mt-1">
-                  Showing {filteredTransactions.length} transaction{filteredTransactions.length !== 1 ? 's' : ''} 
+                  Showing {filteredTransactions.length} transaction{filteredTransactions.length !== 1 ? 's' : ''}
                   {dateFilterMode !== 'allTime' ? ' for selected period' : ' (all time)'}
                 </p>
               </div>
@@ -1099,46 +1100,42 @@ export default function AccountingSystem() {
             {/* Date Range Filter */}
             <div className="mb-6 p-4 bg-gray-50 rounded-lg">
               <p className="text-sm font-semibold text-gray-700 mb-3">Select Period</p>
-              
+
               {/* Quick Filter Buttons */}
               <div className="flex flex-wrap gap-2 mb-4">
                 <button
                   onClick={() => handleQuickFilter('thisMonth')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
-                    dateFilterMode === 'thisMonth'
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${dateFilterMode === 'thisMonth'
                       ? 'bg-indigo-600 text-white'
                       : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   This Month
                 </button>
                 <button
                   onClick={() => handleQuickFilter('thisQuarter')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
-                    dateFilterMode === 'thisQuarter'
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${dateFilterMode === 'thisQuarter'
                       ? 'bg-indigo-600 text-white'
                       : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   This Quarter
                 </button>
                 <button
                   onClick={() => handleQuickFilter('thisFiscalYear')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
-                    dateFilterMode === 'thisFiscalYear'
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${dateFilterMode === 'thisFiscalYear'
                       ? 'bg-indigo-600 text-white'
                       : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   This Fiscal Year
                 </button>
                 <button
                   onClick={() => handleQuickFilter('allTime')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
-                    dateFilterMode === 'allTime'
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${dateFilterMode === 'allTime'
                       ? 'bg-indigo-600 text-white'
                       : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   All Time
                 </button>
@@ -1153,16 +1150,15 @@ export default function AccountingSystem() {
                     }
                     setDateFilterMode('custom');
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1 ${
-                    dateFilterMode === 'custom'
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1 ${dateFilterMode === 'custom'
                       ? 'bg-indigo-600 text-white'
                       : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   <Calendar size={14} /> Custom Range
                 </button>
               </div>
-              
+
               {/* Custom Date Range Inputs */}
               {dateFilterMode === 'custom' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1172,7 +1168,7 @@ export default function AccountingSystem() {
                       <input
                         type="date"
                         value={dateRange.fromDate}
-                        onChange={(e) => setDateRange({...dateRange, fromDate: e.target.value})}
+                        onChange={(e) => setDateRange({ ...dateRange, fromDate: e.target.value })}
                         className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm [color-scheme:light] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-3 [&::-webkit-calendar-picker-indicator]:w-4 [&::-webkit-calendar-picker-indicator]:h-4 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                       />
                       <Calendar className="absolute right-3 top-2.5 h-4 w-4 text-gray-400 pointer-events-none z-10" />
@@ -1184,7 +1180,7 @@ export default function AccountingSystem() {
                       <input
                         type="date"
                         value={dateRange.toDate}
-                        onChange={(e) => setDateRange({...dateRange, toDate: e.target.value})}
+                        onChange={(e) => setDateRange({ ...dateRange, toDate: e.target.value })}
                         className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm [color-scheme:light] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-3 [&::-webkit-calendar-picker-indicator]:w-4 [&::-webkit-calendar-picker-indicator]:h-4 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
                       />
                       <Calendar className="absolute right-3 top-2.5 h-4 w-4 text-gray-400 pointer-events-none z-10" />
@@ -1197,13 +1193,13 @@ export default function AccountingSystem() {
               {dateFilterMode !== 'allTime' && (
                 <p className="text-sm text-gray-600 mt-3">
                   Showing: {
-                    dateFilterMode === 'custom' 
+                    dateFilterMode === 'custom'
                       ? `${dateRange.fromDate} to ${dateRange.toDate}`
                       : dateFilterMode === 'thisMonth'
-                      ? new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
-                      : dateFilterMode === 'thisQuarter'
-                      ? `Q${Math.floor(new Date().getMonth() / 3) + 1} ${new Date().getFullYear()}`
-                      : `FY ${new Date().getMonth() >= 3 ? new Date().getFullYear() : new Date().getFullYear() - 1}-${new Date().getMonth() >= 3 ? new Date().getFullYear() + 1 : new Date().getFullYear()}`
+                        ? new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+                        : dateFilterMode === 'thisQuarter'
+                          ? `Q${Math.floor(new Date().getMonth() / 3) + 1} ${new Date().getFullYear()}`
+                          : `FY ${new Date().getMonth() >= 3 ? new Date().getFullYear() : new Date().getFullYear() - 1}-${new Date().getMonth() >= 3 ? new Date().getFullYear() + 1 : new Date().getFullYear()}`
                   }
                 </p>
               )}
@@ -1211,11 +1207,10 @@ export default function AccountingSystem() {
 
             {/* Surplus/Deficit Badge */}
             <div className="mb-6 flex justify-center">
-              <div className={`px-8 py-4 rounded-lg shadow-lg ${
-                stats.balance >= 0 
-                  ? 'bg-gradient-to-r from-green-500 to-green-600' 
+              <div className={`px-8 py-4 rounded-lg shadow-lg ${stats.balance >= 0
+                  ? 'bg-gradient-to-r from-green-500 to-green-600'
                   : 'bg-gradient-to-r from-red-500 to-red-600'
-              } text-white`}>
+                } text-white`}>
                 <div className="flex items-center gap-3">
                   {stats.balance >= 0 ? (
                     <TrendingUp size={32} />
@@ -1227,7 +1222,7 @@ export default function AccountingSystem() {
                       {stats.balance >= 0 ? 'SURPLUS' : 'DEFICIT'}
                     </p>
                     <p className="text-3xl font-bold">
-                      ₹╣{Math.abs(stats.balance).toLocaleString('en-IN')}
+                      ₹{Math.abs(stats.balance).toLocaleString('en-IN')}
                     </p>
                   </div>
                 </div>
@@ -1238,19 +1233,19 @@ export default function AccountingSystem() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="bg-green-50 rounded-lg p-6 border-l-4 border-green-600">
                 <p className="text-gray-700 font-semibold mb-2">Total Inflow</p>
-                 <p className="text-2xl font-bold text-green-600">{formatCurrency(stats.income)}</p>
+                <p className="text-2xl font-bold text-green-600">{formatCurrency(stats.income)}</p>
                 <p className="text-xs text-gray-600 mt-1">Income for selected period</p>
               </div>
               <div className="bg-red-50 rounded-lg p-6 border-l-4 border-red-600">
                 <p className="text-gray-700 font-semibold mb-2">Total Outflow</p>
-                 <p className="text-2xl font-bold text-red-600">{formatCurrency(stats.expenses)}</p>
+                <p className="text-2xl font-bold text-red-600">{formatCurrency(stats.expenses)}</p>
                 <p className="text-xs text-gray-600 mt-1">Expenses for selected period</p>
               </div>
               <div className={`${stats.balance >= 0 ? 'bg-blue-50 border-blue-600' : 'bg-orange-50 border-orange-600'} rounded-lg p-6 border-l-4`}>
                 <p className="text-gray-700 font-semibold mb-2">Net Position</p>
-                 <p className={`text-2xl font-bold ${stats.balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
-                   {formatCurrency(stats.balance)}
-                 </p>
+                <p className={`text-2xl font-bold ${stats.balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
+                  {formatCurrency(stats.balance)}
+                </p>
                 <p className="text-xs text-gray-600 mt-1">Inflow - Outflow</p>
               </div>
             </div>
@@ -1291,9 +1286,8 @@ export default function AccountingSystem() {
                         <span className="font-semibold text-green-600">
                           {formatCurrency(previousPeriodStats.income)}
                           {previousPeriodStats.income > 0 && (
-                            <span className={`text-xs ml-2 ${
-                              stats.income > previousPeriodStats.income ? 'text-green-600' : 'text-red-600'
-                            }`}>
+                            <span className={`text-xs ml-2 ${stats.income > previousPeriodStats.income ? 'text-green-600' : 'text-red-600'
+                              }`}>
                               ({stats.income > previousPeriodStats.income ? '+' : ''}
                               {((stats.income - previousPeriodStats.income) / previousPeriodStats.income * 100).toFixed(1)}%)
                             </span>
@@ -1305,9 +1299,8 @@ export default function AccountingSystem() {
                         <span className="font-semibold text-red-600">
                           {formatCurrency(previousPeriodStats.expenses)}
                           {previousPeriodStats.expenses > 0 && (
-                            <span className={`text-xs ml-2 ${
-                              stats.expenses < previousPeriodStats.expenses ? 'text-green-600' : 'text-red-600'
-                            }`}>
+                            <span className={`text-xs ml-2 ${stats.expenses < previousPeriodStats.expenses ? 'text-green-600' : 'text-red-600'
+                              }`}>
                               ({stats.expenses < previousPeriodStats.expenses ? '' : '+'}
                               {((stats.expenses - previousPeriodStats.expenses) / previousPeriodStats.expenses * 100).toFixed(1)}%)
                             </span>
@@ -1340,15 +1333,15 @@ export default function AccountingSystem() {
                         <div key={item.sub} className="bg-green-50 rounded-lg p-3">
                           <div className="flex justify-between items-center mb-1">
                             <span className="font-semibold text-gray-700">{item.sub}</span>
-                            <span className="font-bold text-green-600">₹╣{item.total.toLocaleString('en-IN')}</span>
+                            <span className="font-bold text-green-600">₹{Math.abs(item.total).toLocaleString('en-IN')}</span>
                           </div>
                           <div className="w-full bg-green-200 rounded-full h-2">
-                            <div 
-                              className="bg-green-600 h-2 rounded-full" 
+                            <div
+                              className="bg-green-600 h-2 rounded-full"
                               style={{ width: `${percentage}%` }}
                             ></div>
                           </div>
-                          <p className="text-xs text-gray-600 mt-1">{percentage}% of total income ΓÇó {item.count} transaction{item.count !== 1 ? 's' : ''}</p>
+                          <p className="text-xs text-gray-600 mt-1">{percentage}% of total income – {item.count} transaction{item.count !== 1 ? 's' : ''}</p>
                         </div>
                       );
                     })}
@@ -1370,15 +1363,15 @@ export default function AccountingSystem() {
                         <div key={item.sub} className="bg-red-50 rounded-lg p-3">
                           <div className="flex justify-between items-center mb-1">
                             <span className="font-semibold text-gray-700">{item.sub}</span>
-                            <span className="font-bold text-red-600">₹╣{item.total.toLocaleString('en-IN')}</span>
+                            <span className="font-bold text-red-600">₹{Math.abs(item.total).toLocaleString('en-IN')}</span>
                           </div>
                           <div className="w-full bg-red-200 rounded-full h-2">
-                            <div 
-                              className="bg-red-600 h-2 rounded-full" 
+                            <div
+                              className="bg-red-600 h-2 rounded-full"
                               style={{ width: `${percentage}%` }}
                             ></div>
                           </div>
-                          <p className="text-xs text-gray-600 mt-1">{percentage}% of total expenses ΓÇó {item.count} transaction{item.count !== 1 ? 's' : ''}</p>
+                          <p className="text-xs text-gray-600 mt-1">{percentage}% of total expenses – {item.count} transaction{item.count !== 1 ? 's' : ''}</p>
                         </div>
                       );
                     })}
@@ -1407,9 +1400,8 @@ export default function AccountingSystem() {
                           <p className="text-lg font-semibold text-gray-800">{item.receiver}</p>
                         </div>
                         <span
-                          className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                            item.balance >= 0 ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
-                          }`}
+                          className={`text-xs font-semibold px-2 py-1 rounded-full ${item.balance >= 0 ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                            }`}
                         >
                           {item.balance >= 0 ? 'In Surplus' : 'Needs Reimbursement'}
                         </span>
