@@ -34,7 +34,7 @@ const handler: Handler = async (event) => {
         statusCode: 200,
         headers: {
           ...corsHeaders,
-          'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
+          'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
         },
         body: '',
       };
@@ -54,7 +54,11 @@ const handler: Handler = async (event) => {
         filters.push(`date <= $${params.length}`);
       }
 
-      const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+      const softDeleteFilter = `(IsDeleted IS NULL OR IsDeleted != 'Y')`;
+      const whereClause = filters.length 
+        ? `WHERE ${softDeleteFilter} AND ${filters.join(' AND ')}` 
+        : `WHERE ${softDeleteFilter}`;
+      
       const result = await runQuery<{
         id: number;
         date: string;
@@ -65,8 +69,9 @@ const handler: Handler = async (event) => {
         remarks: string;
         amount: number;
         created_at: string;
+        modifieddate: string;
       }>(
-        `SELECT id, date, category, subcategory, sender, receiver, remarks, amount, created_at
+        `SELECT id, date, category, subcategory, sender, receiver, remarks, amount, created_at, ModifiedDate as modifieddate
          FROM transactions
          ${whereClause}
          ORDER BY date DESC, created_at DESC`,
@@ -125,6 +130,104 @@ const handler: Handler = async (event) => {
         headers: corsHeaders,
         body: JSON.stringify(result.rows[0]),
       };
+    }
+
+    if (event.httpMethod === 'PUT') {
+      if (!event.body) {
+        return {
+          statusCode: 400,
+          headers: corsHeaders,
+          body: JSON.stringify({ error: 'Request body is required.' }),
+        };
+      }
+
+      const payload = JSON.parse(event.body);
+      const { id, modifiedDate, ...transactionData } = payload;
+
+      if (!id) {
+        return {
+          statusCode: 400,
+          headers: corsHeaders,
+          body: JSON.stringify({ error: 'Transaction id is required for editing.' }),
+        };
+      }
+
+      const requiredFields = ['date', 'category', 'subcategory', 'sender', 'receiver', 'amount'];
+      for (const field of requiredFields) {
+        if (!transactionData[field]) {
+          return {
+            statusCode: 400,
+            headers: corsHeaders,
+            body: JSON.stringify({ error: `${field} is required.` }),
+          };
+        }
+      }
+
+      // Remarks is optional, default to empty string if not provided
+      if (!transactionData.remarks) {
+        transactionData.remarks = '';
+      }
+
+      // ModifiedDate should come from client, use it or fallback to current time
+      const timestampToUse = modifiedDate || new Date().toISOString().replace('T', ' ').replace('Z', '');
+
+      // Soft edit: Mark old transaction as deleted and insert new one
+      const connectionString = getConnectionString();
+      if (!connectionString) {
+        return {
+          statusCode: 500,
+          headers: corsHeaders,
+          body: JSON.stringify({ error: 'Database connection string is not configured.' }),
+        };
+      }
+
+      const client = new Client({ connectionString });
+      
+      try {
+        await client.connect();
+        
+        // Start transaction
+        await client.query('BEGIN');
+
+        // Mark old transaction as deleted (soft delete)
+        await client.query(
+          `UPDATE transactions 
+           SET IsDeleted = 'Y' 
+           WHERE id = $1 AND (IsDeleted IS NULL OR IsDeleted != 'Y')`,
+          [Number(id)]
+        );
+
+        // Insert new transaction with ModifiedDate from client machine
+        const insertResult = await client.query(
+          `INSERT INTO transactions (date, category, subcategory, sender, receiver, remarks, amount, ModifiedDate)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8::timestamp)
+           RETURNING id, date, category, subcategory, sender, receiver, remarks, amount, created_at, ModifiedDate as modifieddate`,
+          [
+            transactionData.date,
+            transactionData.category,
+            transactionData.subcategory,
+            transactionData.sender,
+            transactionData.receiver,
+            transactionData.remarks,
+            transactionData.amount,
+            timestampToUse,
+          ]
+        );
+
+        // Commit transaction
+        await client.query('COMMIT');
+
+        return {
+          statusCode: 200,
+          headers: corsHeaders,
+          body: JSON.stringify(insertResult.rows[0]),
+        };
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        await client.end();
+      }
     }
 
     if (event.httpMethod === 'DELETE') {

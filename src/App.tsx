@@ -8,6 +8,7 @@ import {
   Calendar,
   TrendingUp,
   TrendingDown,
+  Edit,
 } from 'lucide-react';
 import DatePicker from 'react-datepicker';
 import Select, { SingleValue } from 'react-select';
@@ -23,6 +24,7 @@ interface Transaction {
   remarks: string;
   amount: number;
   created_at?: string;
+  modifieddate?: string;
 }
 
 interface FormState {
@@ -77,6 +79,7 @@ export default function AccountingSystem() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [dataError, setDataError] = useState('');
   const [receiverFilter, setReceiverFilter] = useState<string>('');
+  const [editingTransactionId, setEditingTransactionId] = useState<number | null>(null);
 
   // Date range filter state
   const [dateRange, setDateRange] = useState({
@@ -418,6 +421,86 @@ export default function AccountingSystem() {
     }
   };
 
+  const handleEditTransaction = (transaction: Transaction) => {
+    setEditingTransactionId(transaction.id);
+    setFormData({
+      date: transaction.date,
+      category: transaction.category,
+      subcategory: transaction.subcategory,
+      sender: transaction.sender,
+      receiver: transaction.receiver,
+      remarks: transaction.remarks || '',
+      amount: transaction.amount.toString(),
+    });
+    setFormErrors({});
+    setActiveTab('add'); // Switch to Add Transaction tab to show the form
+    // Scroll to form
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 100);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingTransactionId(null);
+    setFormData(getDefaultFormState());
+    setFormErrors({});
+  };
+
+  const handleUpdateTransaction = async () => {
+    if (!validateTransactionForm() || !editingTransactionId) return;
+    setIsSyncing(true);
+    setDataError('');
+
+    // Generate timestamp from client machine in IST format
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
+    const modifiedDate = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${milliseconds}`;
+
+    const payload = {
+      id: editingTransactionId,
+      ...formData,
+      sender: formData.sender.trim(),
+      receiver: formData.receiver.trim(),
+      remarks: formData.remarks.trim(),
+      amount: Number(formData.amount),
+      modifiedDate: modifiedDate,
+    };
+
+    try {
+      const response = await fetch('/.netlify/functions/transactions', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error('Unable to update the transaction. Please try again.');
+      }
+
+      const updated: Transaction = await response.json();
+      // Remove old transaction and add updated one at the beginning
+      setTransactions((prev) => {
+        const filtered = prev.filter((t) => t.id !== editingTransactionId);
+        return [updated, ...filtered];
+      });
+      setEditingTransactionId(null);
+      setFormData(getDefaultFormState());
+      setFormErrors({});
+    } catch (error) {
+      setDataError((error as Error).message || 'Unable to update the transaction.');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const calculateStats = (trans: Transaction[]) => {
     const income = trans
       .filter(t => t.category === 'Income')
@@ -719,7 +802,12 @@ export default function AccountingSystem() {
         {/* Tabs */}
         <div className="flex flex-wrap gap-2 mb-6">
           <button
-            onClick={() => setActiveTab('add')}
+            onClick={() => {
+              if (activeTab !== 'add') {
+                handleCancelEdit();
+              }
+              setActiveTab('add');
+            }}
             className={`px-4 py-2 rounded-lg font-semibold flex items-center gap-2 ${activeTab === 'add'
                 ? 'bg-indigo-600 text-white'
                 : 'bg-white text-gray-700 border border-gray-300'
@@ -728,7 +816,10 @@ export default function AccountingSystem() {
             <Plus size={18} /> Add Transaction
           </button>
           <button
-            onClick={() => setActiveTab('view')}
+            onClick={() => {
+              handleCancelEdit();
+              setActiveTab('view');
+            }}
             className={`px-4 py-2 rounded-lg font-semibold ${activeTab === 'view'
                 ? 'bg-indigo-600 text-white'
                 : 'bg-white text-gray-700 border border-gray-300'
@@ -737,7 +828,10 @@ export default function AccountingSystem() {
             View Transactions
           </button>
           <button
-            onClick={() => setActiveTab('report')}
+            onClick={() => {
+              handleCancelEdit();
+              setActiveTab('report');
+            }}
             className={`px-4 py-2 rounded-lg font-semibold ${activeTab === 'report'
                 ? 'bg-indigo-600 text-white'
                 : 'bg-white text-gray-700 border border-gray-300'
@@ -750,7 +844,9 @@ export default function AccountingSystem() {
         {/* Add Transaction Tab */}
         {activeTab === 'add' && (
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-2xl font-bold mb-6">Add New Transaction</h2>
+            <h2 className="text-2xl font-bold mb-6">
+              {editingTransactionId ? 'Edit Transaction' : 'Add New Transaction'}
+            </h2>
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -892,13 +988,28 @@ export default function AccountingSystem() {
                 )}
               </div>
 
-              <button
-                onClick={handleAddTransaction}
-                disabled={isSyncing}
-                className={`w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700 ${isSyncing ? 'opacity-70 cursor-not-allowed' : ''}`}
-              >
-                {isSyncing ? 'Saving...' : 'Add Transaction'}
-              </button>
+              <div className="flex gap-3">
+                {editingTransactionId && (
+                  <button
+                    onClick={handleCancelEdit}
+                    disabled={isSyncing}
+                    className={`flex-1 bg-gray-500 text-white py-2 rounded-lg font-semibold hover:bg-gray-600 ${isSyncing ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  >
+                    Cancel
+                  </button>
+                )}
+                <button
+                  onClick={editingTransactionId ? handleUpdateTransaction : handleAddTransaction}
+                  disabled={isSyncing}
+                  className={`${editingTransactionId ? 'flex-1' : 'w-full'} bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700 ${isSyncing ? 'opacity-70 cursor-not-allowed' : ''}`}
+                >
+                  {isSyncing 
+                    ? 'Saving...' 
+                    : editingTransactionId 
+                      ? 'Update Transaction' 
+                      : 'Add Transaction'}
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -1058,13 +1169,25 @@ export default function AccountingSystem() {
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">{t.remarks}</td>
                         <td className="px-4 py-3 text-center">
-                          <button
-                            onClick={() => handleDeleteTransaction(t.id)}
-                            disabled={isSyncing}
-                            className={`text-red-600 hover:text-red-800 font-semibold text-sm ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          >
-                            Delete
-                          </button>
+                          <div className="flex items-center justify-center gap-3">
+                            <button
+                              onClick={() => handleEditTransaction(t)}
+                              disabled={isSyncing}
+                              className={`text-indigo-600 hover:text-indigo-800 font-semibold text-sm flex items-center gap-1 ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                              title="Edit transaction"
+                            >
+                              <Edit size={16} />
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteTransaction(t.id)}
+                              disabled={isSyncing}
+                              className={`text-red-600 hover:text-red-800 font-semibold text-sm ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                              title="Delete transaction"
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
