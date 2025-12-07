@@ -8,6 +8,9 @@ import {
   Calendar,
   TrendingUp,
   TrendingDown,
+  Moon,
+  Sun,
+  Palette,
 } from 'lucide-react';
 import DatePicker from 'react-datepicker';
 import Select, { SingleValue } from 'react-select';
@@ -60,6 +63,14 @@ interface ReceiverOption {
   label: string;
 }
 
+type ColorPalette = 'indigo' | 'blue' | 'purple' | 'emerald' | 'rose';
+type ThemeMode = 'light' | 'dark';
+
+interface Theme {
+  mode: ThemeMode;
+  palette: ColorPalette;
+}
+
 export default function AccountingSystem() {
   // Initialize login state from sessionStorage to persist across refreshes
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
@@ -84,6 +95,41 @@ export default function AccountingSystem() {
     toDate: ''
   });
   const [dateFilterMode, setDateFilterMode] = useState<'thisMonth' | 'thisQuarter' | 'thisFiscalYear' | 'allTime' | 'custom'>('thisMonth'); // 'custom', 'thisMonth', 'thisQuarter', 'thisFiscalYear', 'allTime'
+
+  // Theme state
+  const [theme, setTheme] = useState<Theme>(() => {
+    const saved = localStorage.getItem('madrasah_theme');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return { mode: 'light', palette: 'indigo' };
+      }
+    }
+    return { mode: 'light', palette: 'indigo' };
+  });
+  const [showThemeMenu, setShowThemeMenu] = useState(false);
+
+  // Apply theme to document
+  useEffect(() => {
+    localStorage.setItem('madrasah_theme', JSON.stringify(theme));
+    const root = document.documentElement;
+    root.classList.toggle('dark', theme.mode === 'dark');
+    root.setAttribute('data-theme', theme.palette);
+  }, [theme]);
+
+  // Helper function to get primary button classes based on theme
+  const getPrimaryButtonClasses = (isActive = true) => {
+    if (!isActive) return 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300';
+    const paletteMap = {
+      indigo: 'bg-indigo-600 dark:bg-indigo-600 hover:bg-indigo-700 dark:hover:bg-indigo-700',
+      blue: 'bg-blue-600 dark:bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-700',
+      purple: 'bg-purple-600 dark:bg-purple-600 hover:bg-purple-700 dark:hover:bg-purple-700',
+      emerald: 'bg-emerald-600 dark:bg-emerald-600 hover:bg-emerald-700 dark:hover:bg-emerald-700',
+      rose: 'bg-rose-600 dark:bg-rose-600 hover:bg-rose-700 dark:hover:bg-rose-700',
+    };
+    return paletteMap[theme.palette] + ' text-white';
+  };
 
   // ---- MASTER DATA ----
 
@@ -663,55 +709,157 @@ export default function AccountingSystem() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="bg-indigo-600 text-white shadow-lg">
+      <div className={`${
+        theme.palette === 'indigo' ? 'bg-indigo-600' :
+        theme.palette === 'blue' ? 'bg-blue-600' :
+        theme.palette === 'purple' ? 'bg-purple-600' :
+        theme.palette === 'emerald' ? 'bg-emerald-600' :
+        'bg-rose-600'
+      } text-white shadow-lg dark:bg-gray-800`}>
         <div className="max-w-6xl mx-auto px-4 py-4 md:py-6 flex flex-col md:flex-row md:justify-between md:items-center gap-3">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">Madrasah-e-Millat Bhiwandi</h1>
-            <p className="text-xs md:text-sm text-indigo-100">Accounts | Reporting | Reconciliation</p>
+            <p className={`text-xs md:text-sm ${theme.mode === 'dark' ? 'text-gray-300' : 'opacity-90'}`}>Accounts | Reporting | Reconciliation</p>
           </div>
-          <button
-            onClick={handleLogout}
-            className="w-full md:w-auto justify-center bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg flex items-center gap-2 text-sm md:text-base"
-          >
-            <LogOut size={18} /> Logout
-          </button>
-        </div>
-      </div>
+          <div className="flex items-center gap-2">
+            {/* Theme Toggle Button */}
+            <div className="relative">
+              <button
+                onClick={() => setShowThemeMenu(!showThemeMenu)}
+                className="w-full md:w-auto justify-center bg-white/20 hover:bg-white/30 dark:bg-gray-700/50 dark:hover:bg-gray-700/70 px-4 py-2 rounded-lg flex items-center gap-2 text-sm md:text-base transition-colors"
+                title="Theme Settings"
+              >
+                {theme.mode === 'dark' ? <Moon size={18} /> : <Sun size={18} />}
+                <Palette size={16} />
+              </button>
+              
+              {/* Theme Menu */}
+              {showThemeMenu && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setShowThemeMenu(false)}
+                  />
+                  <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 p-4">
+                    {/* Mode Toggle */}
+                    <div className="mb-4">
+                      <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Mode</p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setTheme({ ...theme, mode: 'light' })}
+                          className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                            theme.mode === 'light'
+                              ? (theme.palette === 'indigo' ? 'bg-indigo-600' :
+                                 theme.palette === 'blue' ? 'bg-blue-600' :
+                                 theme.palette === 'purple' ? 'bg-purple-600' :
+                                 theme.palette === 'emerald' ? 'bg-emerald-600' :
+                                 'bg-rose-600') + ' text-white'
+                              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                          }`}
+                        >
+                          <Sun size={16} className="inline mr-1" />
+                          Light
+                        </button>
+                        <button
+                          onClick={() => setTheme({ ...theme, mode: 'dark' })}
+                          className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                            theme.mode === 'dark'
+                              ? (theme.palette === 'indigo' ? 'bg-indigo-600' :
+                                 theme.palette === 'blue' ? 'bg-blue-600' :
+                                 theme.palette === 'purple' ? 'bg-purple-600' :
+                                 theme.palette === 'emerald' ? 'bg-emerald-600' :
+                                 'bg-rose-600') + ' text-white'
+                              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                          }`}
+                        >
+                          <Moon size={16} className="inline mr-1" />
+                          Dark
+                        </button>
+                      </div>
+                    </div>
+                        
+                        {/* Color Palette */}
+                        <div>
+                          <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Color Palette</p>
+                          <div className="grid grid-cols-5 gap-2">
+                            {(['indigo', 'blue', 'purple', 'emerald', 'rose'] as ColorPalette[]).map((palette) => {
+                              const isSelected = theme.palette === palette;
+                              const baseClasses = isSelected 
+                                ? 'ring-2 ring-offset-2 scale-110' 
+                                : 'hover:scale-105';
+                              const colorClasses = {
+                                indigo: isSelected ? 'bg-indigo-600 ring-indigo-600' : 'bg-indigo-500 hover:bg-indigo-600',
+                                blue: isSelected ? 'bg-blue-600 ring-blue-600' : 'bg-blue-500 hover:bg-blue-600',
+                                purple: isSelected ? 'bg-purple-600 ring-purple-600' : 'bg-purple-500 hover:bg-purple-600',
+                                emerald: isSelected ? 'bg-emerald-600 ring-emerald-600' : 'bg-emerald-500 hover:bg-emerald-600',
+                                rose: isSelected ? 'bg-rose-600 ring-rose-600' : 'bg-rose-500 hover:bg-rose-600',
+                              };
+                              return (
+                                <button
+                                  key={palette}
+                                  onClick={() => setTheme({ ...theme, palette })}
+                                  className={`w-full h-10 rounded-lg transition-all ${baseClasses} ${colorClasses[palette]}`}
+                                  title={palette.charAt(0).toUpperCase() + palette.slice(1)}
+                                />
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+                
+                <button
+                  onClick={handleLogout}
+                  className="w-full md:w-auto justify-center bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700 px-4 py-2 rounded-lg flex items-center gap-2 text-sm md:text-base"
+                >
+                  <LogOut size={18} /> Logout
+                </button>
+              </div>
+            </div>
+          </div>
 
       <div className="max-w-6xl mx-auto p-4">
         {/* Dashboard Stats - All Time */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg shadow p-4 md:p-6">
-            <p className="text-gray-600 text-sm">Total Income (All Time)</p>
-            <p className="text-2xl font-bold text-green-600">{formatCurrency(allTimeStats.income)}</p>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 md:p-6">
+            <p className="text-gray-600 dark:text-gray-400 text-sm">Total Income (All Time)</p>
+            <p className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(allTimeStats.income)}</p>
           </div>
-          <div className="bg-white rounded-lg shadow p-4 md:p-6">
-            <p className="text-gray-600 text-sm">Total Expenses (All Time)</p>
-            <p className="text-2xl font-bold text-red-600">{formatCurrency(allTimeStats.expenses)}</p>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 md:p-6">
+            <p className="text-gray-600 dark:text-gray-400 text-sm">Total Expenses (All Time)</p>
+            <p className="text-2xl font-bold text-red-600 dark:text-red-400">{formatCurrency(allTimeStats.expenses)}</p>
           </div>
-          <div className="bg-white rounded-lg shadow p-4 md:p-6">
-            <p className="text-gray-600 text-sm">Balance (All Time)</p>
-            <p className={`text-2xl font-bold ${allTimeStats.balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 md:p-6">
+            <p className="text-gray-600 dark:text-gray-400 text-sm">Balance (All Time)</p>
+            <p className={`text-2xl font-bold ${allTimeStats.balance >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-orange-600 dark:text-orange-400'}`}>
               {formatCurrency(allTimeStats.balance)}
             </p>
           </div>
-          <div className="bg-white rounded-lg shadow p-4 md:p-6">
-            <p className="text-gray-600 text-sm">Current Filter Balance</p>
-            <p className={`text-2xl font-bold ${stats.balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 md:p-6">
+            <p className="text-gray-600 dark:text-gray-400 text-sm">Current Filter Balance</p>
+            <p className={`text-2xl font-bold ${stats.balance >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-orange-600 dark:text-orange-400'}`}>
               {formatCurrency(stats.balance)}
             </p>
           </div>
         </div>
 
         {dataError && (
-          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="mb-4 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-400">
             {dataError}
           </div>
         )}
         {isSyncing && (
-          <div className="mb-4 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
+          <div className={`mb-4 rounded-lg border ${
+            theme.palette === 'indigo' ? 'border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400' :
+            theme.palette === 'blue' ? 'border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400' :
+            theme.palette === 'purple' ? 'border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400' :
+            theme.palette === 'emerald' ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400' :
+            'border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-400'
+          } px-4 py-3 text-sm`}>
             Syncing with Netlify DB...
           </div>
         )}
@@ -720,28 +868,43 @@ export default function AccountingSystem() {
         <div className="flex flex-wrap gap-2 mb-6">
           <button
             onClick={() => setActiveTab('add')}
-            className={`px-4 py-2 rounded-lg font-semibold flex items-center gap-2 ${activeTab === 'add'
-                ? 'bg-indigo-600 text-white'
-                : 'bg-white text-gray-700 border border-gray-300'
-              }`}
+            className={`px-4 py-2 rounded-lg font-semibold flex items-center gap-2 ${
+              activeTab === 'add'
+                ? (theme.palette === 'indigo' ? 'bg-indigo-600 dark:bg-indigo-600' :
+                   theme.palette === 'blue' ? 'bg-blue-600 dark:bg-blue-600' :
+                   theme.palette === 'purple' ? 'bg-purple-600 dark:bg-purple-600' :
+                   theme.palette === 'emerald' ? 'bg-emerald-600 dark:bg-emerald-600' :
+                   'bg-rose-600 dark:bg-rose-600') + ' text-white'
+                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+            }`}
           >
             <Plus size={18} /> Add Transaction
           </button>
           <button
             onClick={() => setActiveTab('view')}
-            className={`px-4 py-2 rounded-lg font-semibold ${activeTab === 'view'
-                ? 'bg-indigo-600 text-white'
-                : 'bg-white text-gray-700 border border-gray-300'
-              }`}
+            className={`px-4 py-2 rounded-lg font-semibold ${
+              activeTab === 'view'
+                ? (theme.palette === 'indigo' ? 'bg-indigo-600 dark:bg-indigo-600' :
+                   theme.palette === 'blue' ? 'bg-blue-600 dark:bg-blue-600' :
+                   theme.palette === 'purple' ? 'bg-purple-600 dark:bg-purple-600' :
+                   theme.palette === 'emerald' ? 'bg-emerald-600 dark:bg-emerald-600' :
+                   'bg-rose-600 dark:bg-rose-600') + ' text-white'
+                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+            }`}
           >
             View Transactions
           </button>
           <button
             onClick={() => setActiveTab('report')}
-            className={`px-4 py-2 rounded-lg font-semibold ${activeTab === 'report'
-                ? 'bg-indigo-600 text-white'
-                : 'bg-white text-gray-700 border border-gray-300'
-              }`}
+            className={`px-4 py-2 rounded-lg font-semibold ${
+              activeTab === 'report'
+                ? (theme.palette === 'indigo' ? 'bg-indigo-600 dark:bg-indigo-600' :
+                   theme.palette === 'blue' ? 'bg-blue-600 dark:bg-blue-600' :
+                   theme.palette === 'purple' ? 'bg-purple-600 dark:bg-purple-600' :
+                   theme.palette === 'emerald' ? 'bg-emerald-600 dark:bg-emerald-600' :
+                   'bg-rose-600 dark:bg-rose-600') + ' text-white'
+                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+            }`}
           >
             Financial Reports
           </button>
@@ -749,12 +912,12 @@ export default function AccountingSystem() {
 
         {/* Add Transaction Tab */}
         {activeTab === 'add' && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-2xl font-bold mb-6">Add New Transaction</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 className="text-2xl font-bold mb-6 dark:text-white">Add New Transaction</h2>
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold mb-1">Date *</label>
+                  <label className="block text-sm font-semibold mb-1 dark:text-gray-300">Date *</label>
                   <DatePicker
                     selected={formData.date ? new Date(formData.date) : null}
                     onChange={(date: Date | null) => {
@@ -764,15 +927,21 @@ export default function AccountingSystem() {
                       });
                     }}
                     dateFormat="yyyy-MM-dd"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                    className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 ${
+                      theme.palette === 'indigo' ? 'focus:ring-indigo-500 dark:focus:ring-indigo-400' :
+                      theme.palette === 'blue' ? 'focus:ring-blue-500 dark:focus:ring-blue-400' :
+                      theme.palette === 'purple' ? 'focus:ring-purple-500 dark:focus:ring-purple-400' :
+                      theme.palette === 'emerald' ? 'focus:ring-emerald-500 dark:focus:ring-emerald-400' :
+                      'focus:ring-rose-500 dark:focus:ring-rose-400'
+                    } text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
                     placeholderText="Select date"
                   />
                   {formErrors.date && (
-                    <p className="mt-1 text-xs text-red-600">{formErrors.date}</p>
+                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">{formErrors.date}</p>
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-1">Category *</label>
+                  <label className="block text-sm font-semibold mb-1 dark:text-gray-300">Category *</label>
                   <Select<CategoryOption>
                     options={categoryOptions}
                     value={categoryOptions.find((opt) => opt.value === formData.category)}
@@ -783,20 +952,47 @@ export default function AccountingSystem() {
                       control: (base) => ({
                         ...base,
                         borderRadius: 8,
-                        borderColor: '#d1d5db',
+                        borderColor: theme.mode === 'dark' ? '#4b5563' : '#d1d5db',
                         minHeight: '36px',
+                        backgroundColor: theme.mode === 'dark' ? '#374151' : '#ffffff',
+                        color: theme.mode === 'dark' ? '#f3f4f6' : '#111827',
+                      }),
+                      menu: (base) => ({
+                        ...base,
+                        backgroundColor: theme.mode === 'dark' ? '#1f2937' : '#ffffff',
+                      }),
+                      option: (base, state) => ({
+                        ...base,
+                        backgroundColor: state.isSelected
+                          ? (theme.palette === 'indigo' ? '#4f46e5' :
+                             theme.palette === 'blue' ? '#2563eb' :
+                             theme.palette === 'purple' ? '#9333ea' :
+                             theme.palette === 'emerald' ? '#059669' :
+                             '#e11d48')
+                          : state.isFocused
+                          ? (theme.mode === 'dark' ? '#374151' : '#f3f4f6')
+                          : 'transparent',
+                        color: theme.mode === 'dark' ? '#f3f4f6' : '#111827',
+                      }),
+                      singleValue: (base) => ({
+                        ...base,
+                        color: theme.mode === 'dark' ? '#f3f4f6' : '#111827',
+                      }),
+                      input: (base) => ({
+                        ...base,
+                        color: theme.mode === 'dark' ? '#f3f4f6' : '#111827',
                       }),
                     }}
                   />
                   {formErrors.category && (
-                    <p className="mt-1 text-xs text-red-600">{formErrors.category}</p>
+                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">{formErrors.category}</p>
                   )}
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold mb-1">Subcategory *</label>
+                  <label className="block text-sm font-semibold mb-1 dark:text-gray-300">Subcategory *</label>
                   <Select<SubcategoryOption>
                     options={subcategoryOptions}
                     value={subcategoryOptions.find((opt) => opt.value === formData.subcategory)}
@@ -807,34 +1003,66 @@ export default function AccountingSystem() {
                       control: (base) => ({
                         ...base,
                         borderRadius: 8,
-                        borderColor: '#d1d5db',
+                        borderColor: theme.mode === 'dark' ? '#4b5563' : '#d1d5db',
                         minHeight: '36px',
+                        backgroundColor: theme.mode === 'dark' ? '#374151' : '#ffffff',
+                      }),
+                      menu: (base) => ({
+                        ...base,
+                        backgroundColor: theme.mode === 'dark' ? '#1f2937' : '#ffffff',
+                      }),
+                      option: (base, state) => ({
+                        ...base,
+                        backgroundColor: state.isSelected
+                          ? (theme.palette === 'indigo' ? '#4f46e5' :
+                             theme.palette === 'blue' ? '#2563eb' :
+                             theme.palette === 'purple' ? '#9333ea' :
+                             theme.palette === 'emerald' ? '#059669' :
+                             '#e11d48')
+                          : state.isFocused
+                          ? (theme.mode === 'dark' ? '#374151' : '#f3f4f6')
+                          : 'transparent',
+                        color: theme.mode === 'dark' ? '#f3f4f6' : '#111827',
+                      }),
+                      singleValue: (base) => ({
+                        ...base,
+                        color: theme.mode === 'dark' ? '#f3f4f6' : '#111827',
+                      }),
+                      input: (base) => ({
+                        ...base,
+                        color: theme.mode === 'dark' ? '#f3f4f6' : '#111827',
                       }),
                     }}
                   />
                   {formErrors.subcategory && (
-                    <p className="mt-1 text-xs text-red-600">{formErrors.subcategory}</p>
+                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">{formErrors.subcategory}</p>
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-2">Amount (₹) *</label>
+                  <label className="block text-sm font-semibold mb-2 dark:text-gray-300">Amount (₹) *</label>
                   <input
                     type="number"
                     step="0.01"
                     placeholder="0.00"
                     value={formData.amount}
                     onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                    className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 ${
+                      theme.palette === 'indigo' ? 'focus:ring-indigo-500 dark:focus:ring-indigo-400' :
+                      theme.palette === 'blue' ? 'focus:ring-blue-500 dark:focus:ring-blue-400' :
+                      theme.palette === 'purple' ? 'focus:ring-purple-500 dark:focus:ring-purple-400' :
+                      theme.palette === 'emerald' ? 'focus:ring-emerald-500 dark:focus:ring-emerald-400' :
+                      'focus:ring-rose-500 dark:focus:ring-rose-400'
+                    } text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
                   />
                   {formErrors.amount && (
-                    <p className="mt-1 text-xs text-red-600">{formErrors.amount}</p>
+                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">{formErrors.amount}</p>
                   )}
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold mb-2">
+                  <label className="block text-sm font-semibold mb-2 dark:text-gray-300">
                     {formData.category === 'Income' ? 'Sender *' : 'Receiver *'}
                   </label>
                   <input
@@ -846,14 +1074,20 @@ export default function AccountingSystem() {
                     }
                     value={formData.sender}
                     onChange={(e) => setFormData({ ...formData, sender: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                    className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 ${
+                      theme.palette === 'indigo' ? 'focus:ring-indigo-500 dark:focus:ring-indigo-400' :
+                      theme.palette === 'blue' ? 'focus:ring-blue-500 dark:focus:ring-blue-400' :
+                      theme.palette === 'purple' ? 'focus:ring-purple-500 dark:focus:ring-purple-400' :
+                      theme.palette === 'emerald' ? 'focus:ring-emerald-500 dark:focus:ring-emerald-400' :
+                      'focus:ring-rose-500 dark:focus:ring-rose-400'
+                    } text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
                   />
                   {formErrors.sender && (
-                    <p className="mt-1 text-xs text-red-600">{formErrors.sender}</p>
+                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">{formErrors.sender}</p>
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-2">
+                  <label className="block text-sm font-semibold mb-2 dark:text-gray-300">
                     {formData.category === 'Income' ? 'Receiver *' : 'Sender *'}
                   </label>
                   <Select<ReceiverOption>
@@ -867,35 +1101,71 @@ export default function AccountingSystem() {
                       control: (base) => ({
                         ...base,
                         borderRadius: 8,
-                        borderColor: '#d1d5db',
+                        borderColor: theme.mode === 'dark' ? '#4b5563' : '#d1d5db',
                         minHeight: '36px',
+                        backgroundColor: theme.mode === 'dark' ? '#374151' : '#ffffff',
+                      }),
+                      menu: (base) => ({
+                        ...base,
+                        backgroundColor: theme.mode === 'dark' ? '#1f2937' : '#ffffff',
+                      }),
+                      option: (base, state) => ({
+                        ...base,
+                        backgroundColor: state.isSelected
+                          ? (theme.palette === 'indigo' ? '#4f46e5' :
+                             theme.palette === 'blue' ? '#2563eb' :
+                             theme.palette === 'purple' ? '#9333ea' :
+                             theme.palette === 'emerald' ? '#059669' :
+                             '#e11d48')
+                          : state.isFocused
+                          ? (theme.mode === 'dark' ? '#374151' : '#f3f4f6')
+                          : 'transparent',
+                        color: theme.mode === 'dark' ? '#f3f4f6' : '#111827',
+                      }),
+                      singleValue: (base) => ({
+                        ...base,
+                        color: theme.mode === 'dark' ? '#f3f4f6' : '#111827',
+                      }),
+                      input: (base) => ({
+                        ...base,
+                        color: theme.mode === 'dark' ? '#f3f4f6' : '#111827',
+                      }),
+                      placeholder: (base) => ({
+                        ...base,
+                        color: theme.mode === 'dark' ? '#9ca3af' : '#6b7280',
                       }),
                     }}
                   />
                   {formErrors.receiver && (
-                    <p className="mt-1 text-xs text-red-600">{formErrors.receiver}</p>
+                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">{formErrors.receiver}</p>
                   )}
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold mb-2">Remarks (optional)</label>
+                <label className="block text-sm font-semibold mb-2 dark:text-gray-300">Remarks (optional)</label>
                 <textarea
                   placeholder="Brief context about this transaction"
                   value={formData.remarks}
                   onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
                   rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                  className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 ${
+                    theme.palette === 'indigo' ? 'focus:ring-indigo-500 dark:focus:ring-indigo-400' :
+                    theme.palette === 'blue' ? 'focus:ring-blue-500 dark:focus:ring-blue-400' :
+                    theme.palette === 'purple' ? 'focus:ring-purple-500 dark:focus:ring-purple-400' :
+                    theme.palette === 'emerald' ? 'focus:ring-emerald-500 dark:focus:ring-emerald-400' :
+                    'focus:ring-rose-500 dark:focus:ring-rose-400'
+                  } text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
                 />
                 {formErrors.remarks && (
-                  <p className="mt-1 text-xs text-red-600">{formErrors.remarks}</p>
+                  <p className="mt-1 text-xs text-red-600 dark:text-red-400">{formErrors.remarks}</p>
                 )}
               </div>
 
               <button
                 onClick={handleAddTransaction}
                 disabled={isSyncing}
-                className={`w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700 ${isSyncing ? 'opacity-70 cursor-not-allowed' : ''}`}
+                className={`w-full ${getPrimaryButtonClasses()} py-2 rounded-lg font-semibold ${isSyncing ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
                 {isSyncing ? 'Saving...' : 'Add Transaction'}
               </button>
@@ -905,12 +1175,12 @@ export default function AccountingSystem() {
 
         {/* View Transactions Tab */}
         {activeTab === 'view' && (
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-              <h2 className="text-2xl font-bold">Transaction History</h2>
+              <h2 className="text-2xl font-bold dark:text-white">Transaction History</h2>
               <button
                 onClick={exportToCSV}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-green-700"
+                className="bg-green-600 dark:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-green-700 dark:hover:bg-green-600"
               >
                 <Download size={18} /> Export CSV ({filteredTransactions.length} transactions)
               </button>
@@ -1022,25 +1292,25 @@ export default function AccountingSystem() {
             {isLoadingData ? (
               <p className="text-gray-500 text-center py-8">Loading transactions...</p>
             ) : filteredTransactions.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">No transactions found for the selected period</p>
+              <p className="text-gray-500 dark:text-gray-400 text-center py-8">No transactions found for the selected period</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-100">
+                  <thead className="bg-gray-100 dark:bg-gray-700">
                     <tr>
-                      <th className="px-4 py-2 text-left text-sm font-semibold">Date</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold">Category</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold">Subcategory</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold">Sender</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold">Receiver</th>
-                      <th className="px-4 py-2 text-right text-sm font-semibold">Amount</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold">Remarks</th>
-                      <th className="px-4 py-2 text-center text-sm font-semibold">Action</th>
+                      <th className="px-4 py-2 text-left text-sm font-semibold dark:text-gray-300">Date</th>
+                      <th className="px-4 py-2 text-left text-sm font-semibold dark:text-gray-300">Category</th>
+                      <th className="px-4 py-2 text-left text-sm font-semibold dark:text-gray-300">Subcategory</th>
+                      <th className="px-4 py-2 text-left text-sm font-semibold dark:text-gray-300">Sender</th>
+                      <th className="px-4 py-2 text-left text-sm font-semibold dark:text-gray-300">Receiver</th>
+                      <th className="px-4 py-2 text-right text-sm font-semibold dark:text-gray-300">Amount</th>
+                      <th className="px-4 py-2 text-left text-sm font-semibold dark:text-gray-300">Remarks</th>
+                      <th className="px-4 py-2 text-center text-sm font-semibold dark:text-gray-300">Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredTransactions.map(t => (
-                      <tr key={t.id} className="border-t hover:bg-gray-50">
+                      <tr key={t.id} className="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                         <td className="px-4 py-3 text-sm">{formatDisplayDate(t.date)}</td>
                         <td className="px-4 py-3 text-sm">
                           <span className={`px-2 py-1 rounded text-xs font-semibold ${t.category === 'Income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
@@ -1061,7 +1331,7 @@ export default function AccountingSystem() {
                           <button
                             onClick={() => handleDeleteTransaction(t.id)}
                             disabled={isSyncing}
-                            className={`text-red-600 hover:text-red-800 font-semibold text-sm ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            className={`text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 font-semibold text-sm ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
                           >
                             Delete
                           </button>
@@ -1077,56 +1347,71 @@ export default function AccountingSystem() {
 
         {/* Monthly Report Tab */}
         {activeTab === 'report' && (
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
               <div>
-                <h2 className="text-2xl font-bold">Financial Report</h2>
-                <p className="text-sm text-gray-600 mt-1">
+                <h2 className="text-2xl font-bold dark:text-white">Financial Report</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                   Showing {filteredTransactions.length} transaction{filteredTransactions.length !== 1 ? 's' : ''}
                   {dateFilterMode !== 'allTime' ? ' for selected period' : ' (all time)'}
                 </p>
               </div>
               <button
                 onClick={exportToCSV}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-green-700"
+                className="bg-green-600 dark:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-green-700 dark:hover:bg-green-600"
               >
                 <Download size={18} /> Export Report
               </button>
             </div>
             {isLoadingData && (
-              <p className="mb-4 text-sm text-gray-500">Refreshing data from the server...</p>
+              <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">Refreshing data from the server...</p>
             )}
 
             {/* Date Range Filter */}
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm font-semibold text-gray-700 mb-3">Select Period</p>
+            <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+              <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Select Period</p>
 
               {/* Quick Filter Buttons */}
               <div className="flex flex-wrap gap-2 mb-4">
                 <button
                   onClick={() => handleQuickFilter('thisMonth')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${dateFilterMode === 'thisMonth'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                    }`}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
+                    dateFilterMode === 'thisMonth'
+                      ? (theme.palette === 'indigo' ? 'bg-indigo-600 dark:bg-indigo-600' :
+                         theme.palette === 'blue' ? 'bg-blue-600 dark:bg-blue-600' :
+                         theme.palette === 'purple' ? 'bg-purple-600 dark:bg-purple-600' :
+                         theme.palette === 'emerald' ? 'bg-emerald-600 dark:bg-emerald-600' :
+                         'bg-rose-600 dark:bg-rose-600') + ' text-white'
+                      : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }`}
                 >
                   This Month
                 </button>
                 <button
                   onClick={() => handleQuickFilter('thisQuarter')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${dateFilterMode === 'thisQuarter'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                    }`}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
+                    dateFilterMode === 'thisQuarter'
+                      ? (theme.palette === 'indigo' ? 'bg-indigo-600 dark:bg-indigo-600' :
+                         theme.palette === 'blue' ? 'bg-blue-600 dark:bg-blue-600' :
+                         theme.palette === 'purple' ? 'bg-purple-600 dark:bg-purple-600' :
+                         theme.palette === 'emerald' ? 'bg-emerald-600 dark:bg-emerald-600' :
+                         'bg-rose-600 dark:bg-rose-600') + ' text-white'
+                      : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }`}
                 >
                   This Quarter
                 </button>
                 <button
                   onClick={() => handleQuickFilter('thisFiscalYear')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${dateFilterMode === 'thisFiscalYear'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                    }`}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
+                    dateFilterMode === 'thisFiscalYear'
+                      ? (theme.palette === 'indigo' ? 'bg-indigo-600 dark:bg-indigo-600' :
+                         theme.palette === 'blue' ? 'bg-blue-600 dark:bg-blue-600' :
+                         theme.palette === 'purple' ? 'bg-purple-600 dark:bg-purple-600' :
+                         theme.palette === 'emerald' ? 'bg-emerald-600 dark:bg-emerald-600' :
+                         'bg-rose-600 dark:bg-rose-600') + ' text-white'
+                      : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }`}
                 >
                   This Fiscal Year
                 </button>
@@ -1163,27 +1448,39 @@ export default function AccountingSystem() {
               {dateFilterMode === 'custom' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold mb-2">From Date</label>
+                    <label className="block text-sm font-semibold mb-2 dark:text-gray-300">From Date</label>
                     <div className="relative">
                       <input
                         type="date"
                         value={dateRange.fromDate}
                         onChange={(e) => setDateRange({ ...dateRange, fromDate: e.target.value })}
-                        className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm [color-scheme:light] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-3 [&::-webkit-calendar-picker-indicator]:w-4 [&::-webkit-calendar-picker-indicator]:h-4 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                        className={`w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 ${
+                          theme.palette === 'indigo' ? 'focus:ring-indigo-500 dark:focus:ring-indigo-400' :
+                          theme.palette === 'blue' ? 'focus:ring-blue-500 dark:focus:ring-blue-400' :
+                          theme.palette === 'purple' ? 'focus:ring-purple-500 dark:focus:ring-purple-400' :
+                          theme.palette === 'emerald' ? 'focus:ring-emerald-500 dark:focus:ring-emerald-400' :
+                          'focus:ring-rose-500 dark:focus:ring-rose-400'
+                        } text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 [color-scheme:light] dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-3 [&::-webkit-calendar-picker-indicator]:w-4 [&::-webkit-calendar-picker-indicator]:h-4 [&::-webkit-calendar-picker-indicator]:cursor-pointer`}
                       />
-                      <Calendar className="absolute right-3 top-2.5 h-4 w-4 text-gray-400 pointer-events-none z-10" />
+                      <Calendar className="absolute right-3 top-2.5 h-4 w-4 text-gray-400 dark:text-gray-500 pointer-events-none z-10" />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold mb-2">To Date</label>
+                    <label className="block text-sm font-semibold mb-2 dark:text-gray-300">To Date</label>
                     <div className="relative">
                       <input
                         type="date"
                         value={dateRange.toDate}
                         onChange={(e) => setDateRange({ ...dateRange, toDate: e.target.value })}
-                        className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm [color-scheme:light] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-3 [&::-webkit-calendar-picker-indicator]:w-4 [&::-webkit-calendar-picker-indicator]:h-4 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                        className={`w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 ${
+                          theme.palette === 'indigo' ? 'focus:ring-indigo-500 dark:focus:ring-indigo-400' :
+                          theme.palette === 'blue' ? 'focus:ring-blue-500 dark:focus:ring-blue-400' :
+                          theme.palette === 'purple' ? 'focus:ring-purple-500 dark:focus:ring-purple-400' :
+                          theme.palette === 'emerald' ? 'focus:ring-emerald-500 dark:focus:ring-emerald-400' :
+                          'focus:ring-rose-500 dark:focus:ring-rose-400'
+                        } text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 [color-scheme:light] dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-3 [&::-webkit-calendar-picker-indicator]:w-4 [&::-webkit-calendar-picker-indicator]:h-4 [&::-webkit-calendar-picker-indicator]:cursor-pointer`}
                       />
-                      <Calendar className="absolute right-3 top-2.5 h-4 w-4 text-gray-400 pointer-events-none z-10" />
+                      <Calendar className="absolute right-3 top-2.5 h-4 w-4 text-gray-400 dark:text-gray-500 pointer-events-none z-10" />
                     </div>
                   </div>
                 </div>
