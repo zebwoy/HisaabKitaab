@@ -39,10 +39,10 @@ interface FormState {
 }
 
 const getDefaultFormState = (): FormState => ({
-  date: new Date().toISOString().split('T')[0],
-  category: 'Income',
-  subcategory: 'Donations',
-  amount: '',
+    date: new Date().toISOString().split('T')[0],
+    category: 'Income',
+    subcategory: 'Donations',
+    amount: '',
   sender: '',
   receiver: '',
   remarks: '',
@@ -88,7 +88,7 @@ export default function AccountingSystem() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [dataError, setDataError] = useState('');
   const [receiverFilter, setReceiverFilter] = useState<string>('');
-
+  
   // Date range filter state
   const [dateRange, setDateRange] = useState({
     fromDate: '',
@@ -116,6 +116,20 @@ export default function AccountingSystem() {
     const root = document.documentElement;
     root.classList.toggle('dark', theme.mode === 'dark');
     root.setAttribute('data-theme', theme.palette);
+    
+    // Set CSS variable for DatePicker selected color in light mode
+    if (theme.mode === 'light') {
+      const paletteColors = {
+        indigo: '#4f46e5',
+        blue: '#2563eb',
+        purple: '#9333ea',
+        emerald: '#059669',
+        rose: '#e11d48',
+      };
+      root.style.setProperty('--selected-color', paletteColors[theme.palette]);
+    } else {
+      root.style.setProperty('--selected-color', '#1f2937');
+    }
   }, [theme]);
 
   // Helper function to get primary button classes based on theme
@@ -198,7 +212,7 @@ export default function AccountingSystem() {
   // Helper function to get date range based on filter mode
   const getDateRangeForMode = (mode: 'thisMonth' | 'thisQuarter' | 'thisFiscalYear' | 'allTime' | 'custom') => {
     const today = new Date();
-
+    
     switch (mode) {
       case 'thisMonth': {
         const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -219,7 +233,7 @@ export default function AccountingSystem() {
       }
       case 'thisFiscalYear': {
         // India fiscal year: April 1 to March 31
-        const fiscalYearStart = today.getMonth() >= 3
+        const fiscalYearStart = today.getMonth() >= 3 
           ? new Date(today.getFullYear(), 3, 1)  // April 1 of current year
           : new Date(today.getFullYear() - 1, 3, 1);  // April 1 of previous year
         const fiscalYearEnd = today.getMonth() >= 3
@@ -240,50 +254,50 @@ export default function AccountingSystem() {
   // Helper function to filter transactions by date range
   const getFilteredTransactions = (): Transaction[] => {
     let filtered = transactions;
-
+    
     if (receiverFilter) {
       filtered = filtered.filter(t => t.receiver === receiverFilter);
     }
 
     if (dateFilterMode !== 'allTime') {
       const range = dateFilterMode === 'custom' ? dateRange : getDateRangeForMode(dateFilterMode);
-
-      if (range.fromDate) {
-        filtered = filtered.filter(t => t.date >= range.fromDate);
-      }
-      if (range.toDate) {
-        filtered = filtered.filter(t => t.date <= range.toDate);
+    
+    if (range.fromDate) {
+      filtered = filtered.filter(t => t.date >= range.fromDate);
+    }
+    if (range.toDate) {
+      filtered = filtered.filter(t => t.date <= range.toDate);
       }
     }
-
+    
     return filtered;
   };
 
   // Helper function to get previous period for comparison
   const getPreviousPeriodRange = () => {
     let currentRange;
-
+    
     if (dateFilterMode === 'custom') {
       currentRange = dateRange;
     } else {
       currentRange = getDateRangeForMode(dateFilterMode);
     }
-
+    
     if (!currentRange.fromDate || !currentRange.toDate) {
       return null;
     }
-
+    
     const fromDate = new Date(currentRange.fromDate);
     const toDate = new Date(currentRange.toDate);
     const diffMs = toDate.getTime() - fromDate.getTime();
     const daysDiff = Math.ceil(diffMs / (1000 * 60 * 60 * 24)) + 1;
-
+    
     const prevFromDate = new Date(fromDate);
     prevFromDate.setFullYear(prevFromDate.getFullYear() - 1);
-
+    
     const prevToDate = new Date(prevFromDate);
     prevToDate.setDate(prevToDate.getDate() + daysDiff - 1);
-
+    
     return {
       fromDate: prevFromDate.toISOString().split('T')[0],
       toDate: prevToDate.toISOString().split('T')[0]
@@ -294,8 +308,8 @@ export default function AccountingSystem() {
   const getPreviousPeriodTransactions = (): Transaction[] => {
     const prevRange = getPreviousPeriodRange();
     if (!prevRange) return [];
-
-    return transactions.filter(t =>
+    
+    return transactions.filter(t => 
       t.date >= prevRange.fromDate && t.date <= prevRange.toDate
     );
   };
@@ -386,10 +400,10 @@ export default function AccountingSystem() {
       });
 
       if (response.ok) {
-        setIsLoggedIn(true);
-        setLoginPassword('');
+      setIsLoggedIn(true);
+      setLoginPassword('');
         sessionStorage.setItem('madrasah_logged_in', 'true');
-      } else {
+    } else {
         const data = await response.json().catch(() => null);
         setAuthError(data?.message || 'Incorrect password. Please try again.');
       }
@@ -472,7 +486,7 @@ export default function AccountingSystem() {
     const income = trans
       .filter(t => t.category === 'Income')
       .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-
+    
     const expenses = trans
       .filter(t => t.category === 'Expense')
       .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
@@ -493,12 +507,12 @@ export default function AccountingSystem() {
       t.remarks || ''
     ]);
 
-    const dateRangeStr = dateFilterMode === 'custom'
+    const dateRangeStr = dateFilterMode === 'custom' 
       ? `${dateRange.fromDate}_to_${dateRange.toDate}`
       : dateFilterMode;
-
+    
     const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
-
+    
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -706,14 +720,14 @@ export default function AccountingSystem() {
                 Password is verified securely on the server and never stored in the browser.
               </p>
             </form>
-          </div>
+            </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black">
+    <div className="min-h-screen bg-white dark:bg-black">
       {/* Header */}
       <div className={`${
         theme.mode === 'dark' 
@@ -748,34 +762,40 @@ export default function AccountingSystem() {
                     className="fixed inset-0 z-40" 
                     onClick={() => setShowThemeMenu(false)}
                   />
-                  <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-black dark:border dark:border-gray-900 rounded-lg shadow-xl border border-gray-200 z-50 p-4">
+                  <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-black dark:border dark:border-gray-900 rounded-lg shadow-2xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.9)] border border-gray-200 z-50 p-4">
                     {/* Mode Toggle */}
                     <div className="mb-4">
-                      <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Mode</p>
-                      <button
-                        onClick={() => setTheme({ ...theme, mode: theme.mode === 'light' ? 'dark' : 'light' })}
-                        className={`w-full px-3 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2 ${
-                          theme.mode === 'dark'
-                            ? 'bg-black text-white hover:bg-gray-900'
-                            : (theme.palette === 'indigo' ? 'bg-indigo-600 hover:bg-indigo-700' :
-                               theme.palette === 'blue' ? 'bg-blue-600 hover:bg-blue-700' :
-                               theme.palette === 'purple' ? 'bg-purple-600 hover:bg-purple-700' :
-                               theme.palette === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-700' :
-                               'bg-rose-600 hover:bg-rose-700') + ' text-white'
-                        }`}
-                      >
-                        {theme.mode === 'dark' ? (
-                          <>
-                            <Moon size={16} />
-                            Dark Mode
-                          </>
-                        ) : (
-                          <>
-                            <Sun size={16} />
-                            Light Mode
-                          </>
-                        )}
-                      </button>
+                      <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Mode</p>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <Sun size={18} className={theme.mode === 'light' ? 'text-yellow-500' : 'text-gray-400'} />
+                          <span className={`text-sm font-medium ${theme.mode === 'light' ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>Light</span>
+                        </div>
+                        <button
+                          onClick={() => setTheme({ ...theme, mode: theme.mode === 'light' ? 'dark' : 'light' })}
+                          className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                            theme.mode === 'dark'
+                              ? 'bg-gray-900 focus:ring-gray-800'
+                              : (theme.palette === 'indigo' ? 'bg-indigo-600 focus:ring-indigo-500' :
+                                 theme.palette === 'blue' ? 'bg-blue-600 focus:ring-blue-500' :
+                                 theme.palette === 'purple' ? 'bg-purple-600 focus:ring-purple-500' :
+                                 theme.palette === 'emerald' ? 'bg-emerald-600 focus:ring-emerald-500' :
+                                 'bg-rose-600 focus:ring-rose-500')
+                          }`}
+                          role="switch"
+                          aria-checked={theme.mode === 'dark'}
+                        >
+                          <span
+                            className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                              theme.mode === 'dark' ? 'translate-x-8' : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
+                        <div className="flex items-center gap-2">
+                          <Moon size={18} className={theme.mode === 'dark' ? 'text-blue-400' : 'text-gray-400'} />
+                          <span className={`text-sm font-medium ${theme.mode === 'dark' ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>Dark</span>
+                        </div>
+                      </div>
                     </div>
                         
                     {/* Color Palette - Only show in light mode */}
@@ -812,34 +832,34 @@ export default function AccountingSystem() {
                   )}
                 </div>
                 
-                <button
-                  onClick={handleLogout}
+          <button
+            onClick={handleLogout}
                   className="w-full md:w-auto justify-center bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700 px-4 py-2 rounded-lg flex items-center gap-2 text-sm md:text-base"
-                >
-                  <LogOut size={18} /> Logout
-                </button>
+          >
+            <LogOut size={18} /> Logout
+          </button>
               </div>
-            </div>
-          </div>
+        </div>
+      </div>
 
       <div className="max-w-6xl mx-auto p-4">
         {/* Dashboard Stats - All Time */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white dark:bg-black dark:border dark:border-gray-900 rounded-lg shadow p-4 md:p-6">
+          <div className="bg-white dark:bg-black dark:border dark:border-gray-900 border border-gray-200 rounded-lg shadow-xl dark:shadow-[0_10px_30px_rgba(0,0,0,0.8)] hover:shadow-2xl dark:hover:shadow-[0_15px_40px_rgba(0,0,0,1)] transition-all duration-300 hover:-translate-y-1 p-4 md:p-6">
             <p className="text-gray-600 dark:text-gray-400 text-sm">Total Income (All Time)</p>
             <p className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(allTimeStats.income)}</p>
           </div>
-          <div className="bg-white dark:bg-black dark:border dark:border-gray-900 rounded-lg shadow p-4 md:p-6">
+          <div className="bg-white dark:bg-black dark:border dark:border-gray-900 border border-gray-200 rounded-lg shadow-xl dark:shadow-[0_10px_30px_rgba(0,0,0,0.8)] hover:shadow-2xl dark:hover:shadow-[0_15px_40px_rgba(0,0,0,1)] transition-all duration-300 hover:-translate-y-1 p-4 md:p-6">
             <p className="text-gray-600 dark:text-gray-400 text-sm">Total Expenses (All Time)</p>
             <p className="text-2xl font-bold text-red-600 dark:text-red-400">{formatCurrency(allTimeStats.expenses)}</p>
           </div>
-          <div className="bg-white dark:bg-black dark:border dark:border-gray-900 rounded-lg shadow p-4 md:p-6">
+          <div className="bg-white dark:bg-black dark:border dark:border-gray-900 border border-gray-200 rounded-lg shadow-xl dark:shadow-[0_10px_30px_rgba(0,0,0,0.8)] hover:shadow-2xl dark:hover:shadow-[0_15px_40px_rgba(0,0,0,1)] transition-all duration-300 hover:-translate-y-1 p-4 md:p-6">
             <p className="text-gray-600 dark:text-gray-400 text-sm">Balance (All Time)</p>
             <p className={`text-2xl font-bold ${allTimeStats.balance >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-orange-600 dark:text-orange-400'}`}>
               {formatCurrency(allTimeStats.balance)}
             </p>
           </div>
-          <div className="bg-white dark:bg-black dark:border dark:border-gray-900 rounded-lg shadow p-4 md:p-6">
+          <div className="bg-white dark:bg-black dark:border dark:border-gray-900 border border-gray-200 rounded-lg shadow-xl dark:shadow-[0_10px_30px_rgba(0,0,0,0.8)] hover:shadow-2xl dark:hover:shadow-[0_15px_40px_rgba(0,0,0,1)] transition-all duration-300 hover:-translate-y-1 p-4 md:p-6">
             <p className="text-gray-600 dark:text-gray-400 text-sm">Current Filter Balance</p>
             <p className={`text-2xl font-bold ${stats.balance >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-orange-600 dark:text-orange-400'}`}>
               {formatCurrency(stats.balance)}
@@ -920,12 +940,12 @@ export default function AccountingSystem() {
 
         {/* Add Transaction Tab */}
         {activeTab === 'add' && (
-          <div className="bg-white dark:bg-black dark:border dark:border-gray-900 rounded-lg shadow p-6">
-            <h2 className="text-2xl font-bold mb-6 dark:text-white">Add New Transaction</h2>
+          <div className="bg-white dark:bg-black dark:border dark:border-gray-900 border border-gray-200 rounded-lg shadow-2xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] p-6">
+            <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Add New Transaction</h2>
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold mb-1 dark:text-gray-300">Date *</label>
+                  <label className="block text-sm font-semibold mb-1 text-gray-700 dark:text-gray-300">Date *</label>
                   <DatePicker
                     selected={formData.date ? new Date(formData.date) : null}
                     onChange={(date: Date | null) => {
@@ -935,7 +955,7 @@ export default function AccountingSystem() {
                       });
                     }}
                     dateFormat="yyyy-MM-dd"
-                    className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 ${
+                    className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-900 rounded-lg focus:outline-none focus:ring-2 ${
                       theme.mode === 'dark' 
                         ? 'focus:ring-gray-700' 
                         : (theme.palette === 'indigo' ? 'focus:ring-indigo-500' :
@@ -943,7 +963,7 @@ export default function AccountingSystem() {
                            theme.palette === 'purple' ? 'focus:ring-purple-500' :
                            theme.palette === 'emerald' ? 'focus:ring-emerald-500' :
                            'focus:ring-rose-500')
-                    } text-sm bg-white dark:bg-black dark:border-gray-900 text-gray-900 dark:text-gray-100`}
+                    } text-sm bg-white dark:bg-black text-gray-900 dark:text-gray-100`}
                     placeholderText="Select date"
                   />
                   {formErrors.date && (
@@ -1016,26 +1036,27 @@ export default function AccountingSystem() {
                       control: (base) => ({
                         ...base,
                         borderRadius: 8,
-                        borderColor: theme.mode === 'dark' ? '#4b5563' : '#d1d5db',
+                        borderColor: theme.mode === 'dark' ? '#1f2937' : '#d1d5db',
                         minHeight: '36px',
-                        backgroundColor: theme.mode === 'dark' ? '#374151' : '#ffffff',
+                        backgroundColor: theme.mode === 'dark' ? '#000000' : '#ffffff',
                       }),
                       menu: (base) => ({
                         ...base,
-                        backgroundColor: theme.mode === 'dark' ? '#1f2937' : '#ffffff',
+                        backgroundColor: theme.mode === 'dark' ? '#000000' : '#ffffff',
+                        borderColor: theme.mode === 'dark' ? '#1f2937' : '#d1d5db',
                       }),
                       option: (base, state) => ({
                         ...base,
                         backgroundColor: state.isSelected
                           ? (theme.mode === 'dark' 
-                              ? '#4b5563' 
+                              ? '#1f2937' 
                               : (theme.palette === 'indigo' ? '#4f46e5' :
                                  theme.palette === 'blue' ? '#2563eb' :
                                  theme.palette === 'purple' ? '#9333ea' :
                                  theme.palette === 'emerald' ? '#059669' :
                                  '#e11d48'))
                           : state.isFocused
-                          ? (theme.mode === 'dark' ? '#374151' : '#f3f4f6')
+                          ? (theme.mode === 'dark' ? '#1f2937' : '#f3f4f6')
                           : 'transparent',
                         color: theme.mode === 'dark' ? '#f3f4f6' : '#111827',
                       }),
@@ -1054,7 +1075,7 @@ export default function AccountingSystem() {
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-2 dark:text-gray-300">Amount (₹) *</label>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">Amount (₹) *</label>
                   <input
                     type="number"
                     step="0.01"
@@ -1078,12 +1099,12 @@ export default function AccountingSystem() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold mb-2 dark:text-gray-300">
+              <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
                     {formData.category === 'Income' ? 'Sender *' : 'Receiver *'}
                   </label>
-                  <input
-                    type="text"
+                <input
+                  type="text"
                     placeholder={
                       formData.category === 'Income'
                         ? 'Name or entity sending funds'
@@ -1106,7 +1127,7 @@ export default function AccountingSystem() {
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-2 dark:text-gray-300">
+                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
                     {formData.category === 'Income' ? 'Receiver *' : 'Sender *'}
                   </label>
                   <Select<ReceiverOption>
@@ -1165,7 +1186,7 @@ export default function AccountingSystem() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold mb-2 dark:text-gray-300">Remarks (optional)</label>
+                <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">Remarks (optional)</label>
                 <textarea
                   placeholder="Brief context about this transaction"
                   value={formData.remarks}
@@ -1199,9 +1220,9 @@ export default function AccountingSystem() {
 
         {/* View Transactions Tab */}
         {activeTab === 'view' && (
-          <div className="bg-white dark:bg-black dark:border dark:border-gray-900 rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-black dark:border dark:border-gray-900 border border-gray-200 rounded-lg shadow-2xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] p-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-              <h2 className="text-2xl font-bold dark:text-white">Transaction History</h2>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Transaction History</h2>
               <button
                 onClick={exportToCSV}
                 className="bg-green-600 dark:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-green-700 dark:hover:bg-green-600"
@@ -1211,12 +1232,12 @@ export default function AccountingSystem() {
             </div>
 
             {/* Date Filter for View Tab */}
-            <div className="mb-6 p-4 bg-gray-50 dark:bg-black dark:border dark:border-gray-900 rounded-lg">
+            <div className="mb-6 p-4 bg-gray-50 dark:bg-black dark:border dark:border-gray-900 border border-gray-200 rounded-lg shadow-lg dark:shadow-[0_10px_25px_rgba(0,0,0,0.7)]">
               <div className="flex flex-wrap gap-2 mb-4">
-                  <button
-                    onClick={() => handleQuickFilter('thisMonth')}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
-                      dateFilterMode === 'thisMonth'
+                <button
+                  onClick={() => handleQuickFilter('thisMonth')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
+                    dateFilterMode === 'thisMonth'
                         ? (theme.mode === 'dark' 
                             ? 'bg-gray-700 text-white' 
                             : (theme.palette === 'indigo' ? 'bg-indigo-600' :
@@ -1224,15 +1245,15 @@ export default function AccountingSystem() {
                                theme.palette === 'purple' ? 'bg-purple-600' :
                                theme.palette === 'emerald' ? 'bg-emerald-600' :
                                'bg-rose-600') + ' text-white')
-                        : 'bg-white dark:bg-black dark:border-gray-900 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-900 hover:bg-gray-50 dark:hover:bg-gray-900'
-                    }`}
-                  >
-                    This Month
-                  </button>
-                  <button
-                    onClick={() => handleQuickFilter('thisQuarter')}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
-                      dateFilterMode === 'thisQuarter'
+                        : 'bg-white dark:bg-black dark:border-gray-900 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-900 hover:bg-gray-100 dark:hover:bg-gray-900'
+                  }`}
+                >
+                  This Month
+                </button>
+                <button
+                  onClick={() => handleQuickFilter('thisQuarter')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
+                    dateFilterMode === 'thisQuarter'
                         ? (theme.mode === 'dark' 
                             ? 'bg-gray-700 text-white' 
                             : (theme.palette === 'indigo' ? 'bg-indigo-600' :
@@ -1240,15 +1261,15 @@ export default function AccountingSystem() {
                                theme.palette === 'purple' ? 'bg-purple-600' :
                                theme.palette === 'emerald' ? 'bg-emerald-600' :
                                'bg-rose-600') + ' text-white')
-                        : 'bg-white dark:bg-black dark:border-gray-900 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-900 hover:bg-gray-50 dark:hover:bg-gray-900'
-                    }`}
-                  >
-                    This Quarter
-                  </button>
-                  <button
-                    onClick={() => handleQuickFilter('thisFiscalYear')}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
-                      dateFilterMode === 'thisFiscalYear'
+                        : 'bg-white dark:bg-black dark:border-gray-900 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-900 hover:bg-gray-100 dark:hover:bg-gray-900'
+                  }`}
+                >
+                  This Quarter
+                </button>
+                <button
+                  onClick={() => handleQuickFilter('thisFiscalYear')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
+                    dateFilterMode === 'thisFiscalYear'
                         ? (theme.mode === 'dark' 
                             ? 'bg-gray-700 text-white' 
                             : (theme.palette === 'indigo' ? 'bg-indigo-600' :
@@ -1256,15 +1277,15 @@ export default function AccountingSystem() {
                                theme.palette === 'purple' ? 'bg-purple-600' :
                                theme.palette === 'emerald' ? 'bg-emerald-600' :
                                'bg-rose-600') + ' text-white')
-                        : 'bg-white dark:bg-black dark:border-gray-900 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-900 hover:bg-gray-50 dark:hover:bg-gray-900'
-                    }`}
-                  >
-                    This Fiscal Year
-                  </button>
-                  <button
-                    onClick={() => handleQuickFilter('allTime')}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
-                      dateFilterMode === 'allTime'
+                        : 'bg-white dark:bg-black dark:border-gray-900 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-900 hover:bg-gray-100 dark:hover:bg-gray-900'
+                  }`}
+                >
+                  This Fiscal Year
+                </button>
+                <button
+                  onClick={() => handleQuickFilter('allTime')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
+                    dateFilterMode === 'allTime'
                         ? (theme.mode === 'dark' 
                             ? 'bg-gray-700 text-white' 
                             : (theme.palette === 'indigo' ? 'bg-indigo-600' :
@@ -1272,24 +1293,24 @@ export default function AccountingSystem() {
                                theme.palette === 'purple' ? 'bg-purple-600' :
                                theme.palette === 'emerald' ? 'bg-emerald-600' :
                                'bg-rose-600') + ' text-white')
-                        : 'bg-white dark:bg-black dark:border-gray-900 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-900 hover:bg-gray-50 dark:hover:bg-gray-900'
-                    }`}
-                  >
-                    All Time
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (dateFilterMode !== 'custom') {
-                        // When switching to custom, preserve current range if available
-                        if (dateFilterMode !== 'allTime') {
-                          const currentRange = getDateRangeForMode(dateFilterMode);
-                          setDateRange(currentRange);
-                        }
+                        : 'bg-white dark:bg-black dark:border-gray-900 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-900 hover:bg-gray-100 dark:hover:bg-gray-900'
+                  }`}
+                >
+                  All Time
+                </button>
+                <button
+                  onClick={() => {
+                    if (dateFilterMode !== 'custom') {
+                      // When switching to custom, preserve current range if available
+                      if (dateFilterMode !== 'allTime') {
+                        const currentRange = getDateRangeForMode(dateFilterMode);
+                        setDateRange(currentRange);
                       }
-                      setDateFilterMode('custom');
-                    }}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1 ${
-                      dateFilterMode === 'custom'
+                    }
+                    setDateFilterMode('custom');
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1 ${
+                    dateFilterMode === 'custom'
                         ? (theme.mode === 'dark' 
                             ? 'bg-gray-700 text-white' 
                             : (theme.palette === 'indigo' ? 'bg-indigo-600' :
@@ -1297,16 +1318,16 @@ export default function AccountingSystem() {
                                theme.palette === 'purple' ? 'bg-purple-600' :
                                theme.palette === 'emerald' ? 'bg-emerald-600' :
                                'bg-rose-600') + ' text-white')
-                        : 'bg-white dark:bg-black dark:border-gray-900 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-900 hover:bg-gray-50 dark:hover:bg-gray-900'
-                    }`}
-                  >
-                    <Calendar size={14} /> Custom Range
-                  </button>
+                        : 'bg-white dark:bg-black dark:border-gray-900 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-900 hover:bg-gray-100 dark:hover:bg-gray-900'
+                  }`}
+                >
+                  <Calendar size={14} /> Custom Range
+                </button>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
                 <div>
-                  <label className="block text-sm font-semibold mb-2">Receiver Filter</label>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">Receiver Filter</label>
                   <Select
                     options={receiverFilterOptions}
                     value={receiverFilterOptions.find((opt) => opt.value === receiverFilter) ?? receiverFilterOptions[0]}
@@ -1358,15 +1379,15 @@ export default function AccountingSystem() {
                   />
                 </div>
               </div>
-
+              
               {dateFilterMode === 'custom' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold mb-2">From Date</label>
+                    <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">From Date</label>
                     <div className="relative">
-                      <input
-                        type="date"
-                        value={dateRange.fromDate}
+                    <input
+                      type="date"
+                      value={dateRange.fromDate}
                         onChange={(e) => setDateRange({ ...dateRange, fromDate: e.target.value })}
                         className={`w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-900 rounded-lg focus:outline-none focus:ring-2 ${
                           theme.mode === 'dark' 
@@ -1382,11 +1403,11 @@ export default function AccountingSystem() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold mb-2">To Date</label>
+                    <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">To Date</label>
                     <div className="relative">
-                      <input
-                        type="date"
-                        value={dateRange.toDate}
+                    <input
+                      type="date"
+                      value={dateRange.toDate}
                         onChange={(e) => setDateRange({ ...dateRange, toDate: e.target.value })}
                         className={`w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-900 rounded-lg focus:outline-none focus:ring-2 ${
                           theme.mode === 'dark' 
@@ -1406,43 +1427,45 @@ export default function AccountingSystem() {
             </div>
 
             {isLoadingData ? (
-              <p className="text-gray-500 text-center py-8">Loading transactions...</p>
+              <p className="text-gray-600 dark:text-gray-400 text-center py-8">Loading transactions...</p>
             ) : filteredTransactions.length === 0 ? (
-              <p className="text-gray-500 dark:text-gray-400 text-center py-8">No transactions found for the selected period</p>
+              <p className="text-gray-600 dark:text-gray-400 text-center py-8">No transactions found for the selected period</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-100 dark:bg-black dark:border-b dark:border-gray-900">
                     <tr>
-                      <th className="px-4 py-2 text-left text-sm font-semibold dark:text-gray-300">Date</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold dark:text-gray-300">Category</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold dark:text-gray-300">Subcategory</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold dark:text-gray-300">Sender</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold dark:text-gray-300">Receiver</th>
-                      <th className="px-4 py-2 text-right text-sm font-semibold dark:text-gray-300">Amount</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold dark:text-gray-300">Remarks</th>
-                      <th className="px-4 py-2 text-center text-sm font-semibold dark:text-gray-300">Action</th>
+                      <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Date</th>
+                      <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Category</th>
+                      <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Subcategory</th>
+                      <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Sender</th>
+                      <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Receiver</th>
+                      <th className="px-4 py-2 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">Amount</th>
+                      <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700 dark:text-gray-300">Remarks</th>
+                      <th className="px-4 py-2 text-center text-sm font-semibold text-gray-700 dark:text-gray-300">Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredTransactions.map(t => (
-                      <tr key={t.id} className="border-t border-gray-200 dark:border-gray-900 hover:bg-gray-50 dark:hover:bg-gray-900">
-                        <td className="px-4 py-3 text-sm">{formatDisplayDate(t.date)}</td>
+                      <tr key={t.id} className="border-t border-gray-200 dark:border-gray-900 hover:bg-gray-100 dark:hover:bg-gray-900">
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{formatDisplayDate(t.date)}</td>
                         <td className="px-4 py-3 text-sm">
-                          <span className={`px-2 py-1 rounded text-xs font-semibold ${t.category === 'Income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                            }`}>
+                          <span className={`px-2 py-1 rounded text-xs font-semibold ${t.category === 'Income' 
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400' 
+                            : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400'
+                          }`}>
                             {t.category}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{t.subcategory}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700">{t.sender}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700">{t.receiver}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{t.subcategory}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{t.sender}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{t.receiver}</td>
                         <td className="px-4 py-3 text-sm text-right font-semibold">
-                          <span className={t.category === 'Income' ? 'text-green-600' : 'text-red-600'}>
+                          <span className={t.category === 'Income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
                             {t.category === 'Income' ? '+' : '-'}{formatCurrency(Number(t.amount))}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{t.remarks}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{t.remarks}</td>
                         <td className="px-4 py-3 text-center">
                           <button
                             onClick={() => handleDeleteTransaction(t.id)}
@@ -1463,12 +1486,12 @@ export default function AccountingSystem() {
 
         {/* Monthly Report Tab */}
         {activeTab === 'report' && (
-          <div className="bg-white dark:bg-black dark:border dark:border-gray-900 rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-black dark:border dark:border-gray-900 border border-gray-200 rounded-lg shadow-2xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] p-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
               <div>
-                <h2 className="text-2xl font-bold dark:text-white">Financial Report</h2>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Financial Report</h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Showing {filteredTransactions.length} transaction{filteredTransactions.length !== 1 ? 's' : ''}
+                  Showing {filteredTransactions.length} transaction{filteredTransactions.length !== 1 ? 's' : ''} 
                   {dateFilterMode !== 'allTime' ? ' for selected period' : ' (all time)'}
                 </p>
               </div>
@@ -1480,13 +1503,13 @@ export default function AccountingSystem() {
               </button>
             </div>
             {isLoadingData && (
-              <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">Refreshing data from the server...</p>
+              <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">Refreshing data from the server...</p>
             )}
 
             {/* Date Range Filter */}
-            <div className="mb-6 p-4 bg-gray-50 dark:bg-black dark:border dark:border-gray-900 rounded-lg">
+            <div className="mb-6 p-4 bg-gray-50 dark:bg-black dark:border dark:border-gray-900 border border-gray-200 rounded-lg shadow-lg dark:shadow-[0_10px_25px_rgba(0,0,0,0.7)]">
               <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Select Period</p>
-
+              
               {/* Quick Filter Buttons */}
               <div className="flex flex-wrap gap-2 mb-4">
                 <button
@@ -1500,7 +1523,7 @@ export default function AccountingSystem() {
                              theme.palette === 'purple' ? 'bg-purple-600' :
                              theme.palette === 'emerald' ? 'bg-emerald-600' :
                              'bg-rose-600') + ' text-white')
-                      : 'bg-white dark:bg-black dark:border-gray-900 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-900 hover:bg-gray-50 dark:hover:bg-gray-900'
+                      : 'bg-white dark:bg-black dark:border-gray-900 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-900 hover:bg-gray-100 dark:hover:bg-gray-900'
                   }`}
                 >
                   This Month
@@ -1516,7 +1539,7 @@ export default function AccountingSystem() {
                              theme.palette === 'purple' ? 'bg-purple-600' :
                              theme.palette === 'emerald' ? 'bg-emerald-600' :
                              'bg-rose-600') + ' text-white')
-                      : 'bg-white dark:bg-black dark:border-gray-900 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-900 hover:bg-gray-50 dark:hover:bg-gray-900'
+                      : 'bg-white dark:bg-black dark:border-gray-900 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-900 hover:bg-gray-100 dark:hover:bg-gray-900'
                   }`}
                 >
                   This Quarter
@@ -1532,7 +1555,7 @@ export default function AccountingSystem() {
                              theme.palette === 'purple' ? 'bg-purple-600' :
                              theme.palette === 'emerald' ? 'bg-emerald-600' :
                              'bg-rose-600') + ' text-white')
-                      : 'bg-white dark:bg-black dark:border-gray-900 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-900 hover:bg-gray-50 dark:hover:bg-gray-900'
+                      : 'bg-white dark:bg-black dark:border-gray-900 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-900 hover:bg-gray-100 dark:hover:bg-gray-900'
                   }`}
                 >
                   This Fiscal Year
@@ -1548,7 +1571,7 @@ export default function AccountingSystem() {
                              theme.palette === 'purple' ? 'bg-purple-600' :
                              theme.palette === 'emerald' ? 'bg-emerald-600' :
                              'bg-rose-600') + ' text-white')
-                      : 'bg-white dark:bg-black dark:border-gray-900 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-900 hover:bg-gray-50 dark:hover:bg-gray-900'
+                      : 'bg-white dark:bg-black dark:border-gray-900 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-900 hover:bg-gray-100 dark:hover:bg-gray-900'
                   }`}
                 >
                   All Time
@@ -1573,22 +1596,22 @@ export default function AccountingSystem() {
                              theme.palette === 'purple' ? 'bg-purple-600' :
                              theme.palette === 'emerald' ? 'bg-emerald-600' :
                              'bg-rose-600') + ' text-white')
-                      : 'bg-white dark:bg-black dark:border-gray-900 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-900 hover:bg-gray-50 dark:hover:bg-gray-900'
+                      : 'bg-white dark:bg-black dark:border-gray-900 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-900 hover:bg-gray-100 dark:hover:bg-gray-900'
                   }`}
                 >
                   <Calendar size={14} /> Custom Range
                 </button>
               </div>
-
+              
               {/* Custom Date Range Inputs */}
               {dateFilterMode === 'custom' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-semibold mb-2 dark:text-gray-300">From Date</label>
                     <div className="relative">
-                      <input
-                        type="date"
-                        value={dateRange.fromDate}
+                    <input
+                      type="date"
+                      value={dateRange.fromDate}
                         onChange={(e) => setDateRange({ ...dateRange, fromDate: e.target.value })}
                         className={`w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-900 rounded-lg focus:outline-none focus:ring-2 ${
                           theme.mode === 'dark' 
@@ -1606,9 +1629,9 @@ export default function AccountingSystem() {
                   <div>
                     <label className="block text-sm font-semibold mb-2 dark:text-gray-300">To Date</label>
                     <div className="relative">
-                      <input
-                        type="date"
-                        value={dateRange.toDate}
+                    <input
+                      type="date"
+                      value={dateRange.toDate}
                         onChange={(e) => setDateRange({ ...dateRange, toDate: e.target.value })}
                         className={`w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-900 rounded-lg focus:outline-none focus:ring-2 ${
                           theme.mode === 'dark' 
@@ -1628,15 +1651,15 @@ export default function AccountingSystem() {
 
               {/* Display Selected Period */}
               {dateFilterMode !== 'allTime' && (
-                <p className="text-sm text-gray-600 mt-3">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-3">
                   Showing: {
-                    dateFilterMode === 'custom'
+                    dateFilterMode === 'custom' 
                       ? `${dateRange.fromDate} to ${dateRange.toDate}`
                       : dateFilterMode === 'thisMonth'
-                        ? new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
-                        : dateFilterMode === 'thisQuarter'
-                          ? `Q${Math.floor(new Date().getMonth() / 3) + 1} ${new Date().getFullYear()}`
-                          : `FY ${new Date().getMonth() >= 3 ? new Date().getFullYear() : new Date().getFullYear() - 1}-${new Date().getMonth() >= 3 ? new Date().getFullYear() + 1 : new Date().getFullYear()}`
+                      ? new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+                      : dateFilterMode === 'thisQuarter'
+                      ? `Q${Math.floor(new Date().getMonth() / 3) + 1} ${new Date().getFullYear()}`
+                      : `FY ${new Date().getMonth() >= 3 ? new Date().getFullYear() : new Date().getFullYear() - 1}-${new Date().getMonth() >= 3 ? new Date().getFullYear() + 1 : new Date().getFullYear()}`
                   }
                 </p>
               )}
@@ -1644,10 +1667,10 @@ export default function AccountingSystem() {
 
             {/* Surplus/Deficit Badge */}
             <div className="mb-6 flex justify-center">
-              <div className={`px-8 py-4 rounded-lg shadow-lg ${stats.balance >= 0
-                  ? 'bg-gradient-to-r from-green-500 to-green-600'
+              <div className={`px-8 py-4 rounded-lg shadow-2xl dark:shadow-[0_15px_35px_rgba(0,0,0,0.9)] transition-all duration-300 hover:scale-105 ${stats.balance >= 0
+                  ? 'bg-gradient-to-r from-green-500 to-green-600' 
                   : 'bg-gradient-to-r from-red-500 to-red-600'
-                } text-white`}>
+              } text-white`}>
                 <div className="flex items-center gap-3">
                   {stats.balance >= 0 ? (
                     <TrendingUp size={32} />
@@ -1668,63 +1691,66 @@ export default function AccountingSystem() {
 
             {/* Detailed Inflow/Outflow Breakdown */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div className="bg-green-50 rounded-lg p-6 border-l-4 border-green-600">
-                <p className="text-gray-700 font-semibold mb-2">Total Inflow</p>
-                <p className="text-2xl font-bold text-green-600">{formatCurrency(stats.income)}</p>
-                <p className="text-xs text-gray-600 mt-1">Income for selected period</p>
+              <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-6 border-l-4 border-green-600 dark:border-green-700 shadow-lg dark:shadow-[0_10px_25px_rgba(34,197,94,0.2)] hover:shadow-xl dark:hover:shadow-[0_15px_35px_rgba(34,197,94,0.3)] transition-all duration-300 hover:-translate-y-1">
+                <p className="text-gray-700 dark:text-gray-300 font-semibold mb-2">Total Inflow</p>
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(stats.income)}</p>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Income for selected period</p>
               </div>
-              <div className="bg-red-50 rounded-lg p-6 border-l-4 border-red-600">
-                <p className="text-gray-700 font-semibold mb-2">Total Outflow</p>
-                <p className="text-2xl font-bold text-red-600">{formatCurrency(stats.expenses)}</p>
-                <p className="text-xs text-gray-600 mt-1">Expenses for selected period</p>
+              <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-6 border-l-4 border-red-600 dark:border-red-700 shadow-lg dark:shadow-[0_10px_25px_rgba(239,68,68,0.2)] hover:shadow-xl dark:hover:shadow-[0_15px_35px_rgba(239,68,68,0.3)] transition-all duration-300 hover:-translate-y-1">
+                <p className="text-gray-700 dark:text-gray-300 font-semibold mb-2">Total Outflow</p>
+                <p className="text-2xl font-bold text-red-600 dark:text-red-400">{formatCurrency(stats.expenses)}</p>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Expenses for selected period</p>
               </div>
-              <div className={`${stats.balance >= 0 ? 'bg-blue-50 border-blue-600' : 'bg-orange-50 border-orange-600'} rounded-lg p-6 border-l-4`}>
-                <p className="text-gray-700 font-semibold mb-2">Net Position</p>
-                <p className={`text-2xl font-bold ${stats.balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
+              <div className={`${stats.balance >= 0 
+                ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-600 dark:border-blue-700 shadow-lg dark:shadow-[0_10px_25px_rgba(37,99,235,0.2)] hover:shadow-xl dark:hover:shadow-[0_15px_35px_rgba(37,99,235,0.3)]' 
+                : 'bg-orange-50 dark:bg-orange-900/20 border-orange-600 dark:border-orange-700 shadow-lg dark:shadow-[0_10px_25px_rgba(249,115,22,0.2)] hover:shadow-xl dark:hover:shadow-[0_15px_35px_rgba(249,115,22,0.3)]'
+              } rounded-lg p-6 border-l-4 transition-all duration-300 hover:-translate-y-1`}>
+                <p className="text-gray-700 dark:text-gray-300 font-semibold mb-2">Net Position</p>
+                <p className={`text-2xl font-bold ${stats.balance >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-orange-600 dark:text-orange-400'}`}>
                   {formatCurrency(stats.balance)}
                 </p>
-                <p className="text-xs text-gray-600 mt-1">Inflow - Outflow</p>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Inflow - Outflow</p>
               </div>
             </div>
 
             {/* Period Comparison */}
             {previousRange && (
-              <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <h3 className="text-lg font-bold mb-4 text-blue-700">Period Comparison</h3>
+              <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 shadow-lg dark:shadow-[0_10px_25px_rgba(37,99,235,0.2)]">
+                <h3 className="text-lg font-bold mb-4 text-blue-700 dark:text-blue-300">Period Comparison</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <p className="text-sm font-semibold text-gray-700 mb-2">
+                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                       Current Period: {formatPeriodLabel()}
                     </p>
                     <div className="space-y-2">
                       <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">Income:</span>
-                        <span className="font-semibold text-green-600">{formatCurrency(stats.income)}</span>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Income:</span>
+                        <span className="font-semibold text-green-600 dark:text-green-400">{formatCurrency(stats.income)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">Expenses:</span>
-                        <span className="font-semibold text-red-600">{formatCurrency(stats.expenses)}</span>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Expenses:</span>
+                        <span className="font-semibold text-red-600 dark:text-red-400">{formatCurrency(stats.expenses)}</span>
                       </div>
-                      <div className="flex justify-between border-t pt-2">
-                        <span className="text-sm font-semibold text-gray-700">Balance:</span>
-                        <span className={`font-bold ${stats.balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
+                      <div className="flex justify-between border-t border-gray-200 dark:border-gray-700 pt-2">
+                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Balance:</span>
+                        <span className={`font-bold ${stats.balance >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-orange-600 dark:text-orange-400'}`}>
                           {formatCurrency(stats.balance)}
                         </span>
                       </div>
                     </div>
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-gray-700 mb-2">
+                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                       {formatPreviousPeriodLabel()}
                     </p>
                     <div className="space-y-2">
                       <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">Income:</span>
-                        <span className="font-semibold text-green-600">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Income:</span>
+                        <span className="font-semibold text-green-600 dark:text-green-400">
                           {formatCurrency(previousPeriodStats.income)}
                           {previousPeriodStats.income > 0 && (
-                            <span className={`text-xs ml-2 ${stats.income > previousPeriodStats.income ? 'text-green-600' : 'text-red-600'
-                              }`}>
+                            <span className={`text-xs ml-2 ${stats.income > previousPeriodStats.income ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                            }`}>
                               ({stats.income > previousPeriodStats.income ? '+' : ''}
                               {((stats.income - previousPeriodStats.income) / previousPeriodStats.income * 100).toFixed(1)}%)
                             </span>
@@ -1732,21 +1758,21 @@ export default function AccountingSystem() {
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">Expenses:</span>
-                        <span className="font-semibold text-red-600">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Expenses:</span>
+                        <span className="font-semibold text-red-600 dark:text-red-400">
                           {formatCurrency(previousPeriodStats.expenses)}
                           {previousPeriodStats.expenses > 0 && (
-                            <span className={`text-xs ml-2 ${stats.expenses < previousPeriodStats.expenses ? 'text-green-600' : 'text-red-600'
-                              }`}>
+                            <span className={`text-xs ml-2 ${stats.expenses < previousPeriodStats.expenses ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                            }`}>
                               ({stats.expenses < previousPeriodStats.expenses ? '' : '+'}
                               {((stats.expenses - previousPeriodStats.expenses) / previousPeriodStats.expenses * 100).toFixed(1)}%)
                             </span>
                           )}
                         </span>
                       </div>
-                      <div className="flex justify-between border-t pt-2">
-                        <span className="text-sm font-semibold text-gray-700">Balance:</span>
-                        <span className={`font-bold ${previousPeriodStats.balance >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
+                      <div className="flex justify-between border-t border-gray-200 dark:border-gray-700 pt-2">
+                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Balance:</span>
+                        <span className={`font-bold ${previousPeriodStats.balance >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-orange-600 dark:text-orange-400'}`}>
                           {formatCurrency(previousPeriodStats.balance)}
                         </span>
                       </div>
@@ -1759,7 +1785,7 @@ export default function AccountingSystem() {
             {/* Category-wise Breakdown */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <h3 className="text-lg font-bold mb-4 text-green-600 flex items-center gap-2">
+                <h3 className="text-lg font-bold mb-4 text-green-600 dark:text-green-400 flex items-center gap-2">
                   <TrendingUp size={20} /> Income Breakdown by Category
                 </h3>
                 {getCategoryBreakdown(filteredTransactions, 'Income').length > 0 ? (
@@ -1767,77 +1793,79 @@ export default function AccountingSystem() {
                     {getCategoryBreakdown(filteredTransactions, 'Income').map((item) => {
                       const percentage = stats.income > 0 ? (item.total / stats.income * 100).toFixed(1) : 0;
                       return (
-                        <div key={item.sub} className="bg-green-50 rounded-lg p-3">
+                        <div key={item.sub} className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3 shadow-md dark:shadow-[0_5px_15px_rgba(34,197,94,0.2)] hover:shadow-lg dark:hover:shadow-[0_8px_20px_rgba(34,197,94,0.3)] transition-all duration-300">
                           <div className="flex justify-between items-center mb-1">
-                            <span className="font-semibold text-gray-700">{item.sub}</span>
-                            <span className="font-bold text-green-600">₹{Math.abs(item.total).toLocaleString('en-IN')}</span>
+                            <span className="font-semibold text-gray-700 dark:text-gray-300">{item.sub}</span>
+                            <span className="font-bold text-green-600 dark:text-green-400">₹{Math.abs(item.total).toLocaleString('en-IN')}</span>
                           </div>
-                          <div className="w-full bg-green-200 rounded-full h-2">
-                            <div
-                              className="bg-green-600 h-2 rounded-full"
+                          <div className="w-full bg-green-200 dark:bg-green-800 rounded-full h-2">
+                            <div 
+                              className="bg-green-600 dark:bg-green-500 h-2 rounded-full"
                               style={{ width: `${percentage}%` }}
                             ></div>
                           </div>
-                          <p className="text-xs text-gray-600 mt-1">{percentage}% of total income – {item.count} transaction{item.count !== 1 ? 's' : ''}</p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{percentage}% of total income – {item.count} transaction{item.count !== 1 ? 's' : ''}</p>
                         </div>
                       );
                     })}
                   </div>
                 ) : (
-                  <p className="text-gray-500 text-center py-4">No income transactions in selected period</p>
+                  <p className="text-gray-600 dark:text-gray-400 text-center py-4">No income transactions in selected period</p>
                 )}
               </div>
 
               <div>
-                <h3 className="text-lg font-bold mb-4 text-red-600 flex items-center gap-2">
+                 <h3 className="text-lg font-bold mb-4 text-red-600 dark:text-red-400 flex items-center gap-2">
                   <TrendingDown size={20} /> Expense Breakdown by Category
                 </h3>
                 {getCategoryBreakdown(filteredTransactions, 'Expense').length > 0 ? (
                   <div className="space-y-2">
-                    {getCategoryBreakdown(filteredTransactions, 'Expense').map((item) => {
+                     {getCategoryBreakdown(filteredTransactions, 'Expense').map((item) => {
                       const percentage = stats.expenses > 0 ? (item.total / stats.expenses * 100).toFixed(1) : 0;
-                      return (
-                        <div key={item.sub} className="bg-red-50 rounded-lg p-3">
+                        return (
+                          <div key={item.sub} className="bg-red-50 dark:bg-red-900/20 rounded-lg p-3 shadow-md dark:shadow-[0_5px_15px_rgba(239,68,68,0.2)] hover:shadow-lg dark:hover:shadow-[0_8px_20px_rgba(239,68,68,0.3)] transition-all duration-300">
                           <div className="flex justify-between items-center mb-1">
-                            <span className="font-semibold text-gray-700">{item.sub}</span>
-                            <span className="font-bold text-red-600">₹{Math.abs(item.total).toLocaleString('en-IN')}</span>
+                             <span className="font-semibold text-gray-700 dark:text-gray-300">{item.sub}</span>
+                             <span className="font-bold text-red-600 dark:text-red-400">₹{Math.abs(item.total).toLocaleString('en-IN')}</span>
                           </div>
-                          <div className="w-full bg-red-200 rounded-full h-2">
-                            <div
-                              className="bg-red-600 h-2 rounded-full"
+                           <div className="w-full bg-red-200 dark:bg-red-800 rounded-full h-2">
+                            <div 
+                               className="bg-red-600 dark:bg-red-500 h-2 rounded-full"
                               style={{ width: `${percentage}%` }}
                             ></div>
                           </div>
-                          <p className="text-xs text-gray-600 mt-1">{percentage}% of total expenses – {item.count} transaction{item.count !== 1 ? 's' : ''}</p>
+                           <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{percentage}% of total expenses – {item.count} transaction{item.count !== 1 ? 's' : ''}</p>
                         </div>
                       );
                     })}
                   </div>
                 ) : (
-                  <p className="text-gray-500 text-center py-4">No expense transactions in selected period</p>
+                    <p className="text-gray-600 dark:text-gray-400 text-center py-4">No expense transactions in selected period</p>
                 )}
               </div>
             </div>
 
             {/* Receiver-wise Funds */}
             <div className="mt-6">
-              <h3 className="text-lg font-bold mb-3 text-indigo-700">Receiver-wise Funds</h3>
+              <h3 className="text-lg font-bold mb-3 text-indigo-700 dark:text-indigo-400">Receiver-wise Funds</h3>
               {getReceiverStats(filteredTransactions).length === 0 ? (
-                <p className="text-sm text-gray-500">No receiver data for this period.</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">No receiver data for this period.</p>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {getReceiverStats(filteredTransactions).map((item) => (
-                    <div
-                      key={item.receiver}
-                      className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
-                    >
+                     <div
+                       key={item.receiver}
+                       className="rounded-lg border border-gray-200 dark:border-gray-900 bg-white dark:bg-black p-4 shadow-lg dark:shadow-[0_10px_25px_rgba(0,0,0,0.7)] hover:shadow-xl dark:hover:shadow-[0_15px_35px_rgba(0,0,0,0.8)] transition-all duration-300 hover:-translate-y-1"
+                     >
                       <div className="flex justify-between items-start mb-2">
                         <div>
-                          <p className="text-sm text-gray-500">Receiver</p>
-                          <p className="text-lg font-semibold text-gray-800">{item.receiver}</p>
-                        </div>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">Receiver</p>
+                          <p className="text-lg font-semibold text-gray-800 dark:text-gray-200">{item.receiver}</p>
+          </div>
                         <span
-                          className={`text-xs font-semibold px-2 py-1 rounded-full ${item.balance >= 0 ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                          className={`text-xs font-semibold px-2 py-1 rounded-full ${item.balance >= 0 
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' 
+                            : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400'
                             }`}
                         >
                           {item.balance >= 0 ? 'In Surplus' : 'Needs Reimbursement'}
@@ -1845,22 +1873,22 @@ export default function AccountingSystem() {
                       </div>
                       <div className="space-y-1 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Income</span>
-                          <span className="font-semibold text-green-700">{formatCurrency(item.income)}</span>
+                          <span className="text-gray-600 dark:text-gray-400">Income</span>
+                          <span className="font-semibold text-green-700 dark:text-green-400">{formatCurrency(item.income)}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Expenses</span>
-                          <span className="font-semibold text-red-700">{formatCurrency(item.expenses)}</span>
+                          <span className="text-gray-600 dark:text-gray-400">Expenses</span>
+                          <span className="font-semibold text-red-700 dark:text-red-400">{formatCurrency(item.expenses)}</span>
                         </div>
-                        <div className="flex justify-between border-t pt-2 mt-2">
-                          <span className="text-gray-700 font-semibold">Net</span>
-                          <span className={`font-bold ${item.balance >= 0 ? 'text-blue-700' : 'text-orange-700'}`}>
+                        <div className="flex justify-between border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
+                          <span className="text-gray-700 dark:text-gray-300 font-semibold">Net</span>
+                          <span className={`font-bold ${item.balance >= 0 ? 'text-blue-700 dark:text-blue-400' : 'text-orange-700 dark:text-orange-400'}`}>
                             {formatCurrency(item.balance)}
                           </span>
                         </div>
                       </div>
                       {item.balance < 0 && (
-                        <p className="mt-2 text-xs text-orange-700">
+                        <p className="mt-2 text-xs text-orange-700 dark:text-orange-400">
                           Receiver has paid beyond available funds. Reimbursement advised.
                         </p>
                       )}
