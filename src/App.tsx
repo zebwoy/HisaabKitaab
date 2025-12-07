@@ -11,6 +11,7 @@ import {
   Moon,
   Sun,
   Palette,
+  X,
 } from 'lucide-react';
 import DatePicker from 'react-datepicker';
 import Select, { SingleValue } from 'react-select';
@@ -88,6 +89,10 @@ export default function AccountingSystem() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [dataError, setDataError] = useState('');
   const [receiverFilter, setReceiverFilter] = useState<string>('');
+  
+  // Saved senders state (loaded from server)
+  const [savedSenders, setSavedSenders] = useState<string[]>([]);
+  const [showSenderDropdown, setShowSenderDropdown] = useState(false);
   
   // Date range filter state
   const [dateRange, setDateRange] = useState({
@@ -204,6 +209,32 @@ export default function AccountingSystem() {
       toDate: lastDay.toISOString().split('T')[0]
     });
   }, []);
+
+  // Fetch saved senders from server
+  const fetchSavedSenders = useCallback(async () => {
+    try {
+      const response = await fetch('/.netlify/functions/saved-senders');
+      if (!response.ok) {
+        throw new Error('Unable to load saved senders from the server.');
+      }
+      const data: string[] = await response.json();
+      setSavedSenders(data);
+    } catch (error) {
+      console.error('Error loading saved senders:', error);
+      // Don't show error to user, just use empty array
+      setSavedSenders([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTransactions();
+  }, [fetchTransactions]);
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      fetchSavedSenders();
+    }
+  }, [isLoggedIn, fetchSavedSenders]);
 
   useEffect(() => {
     fetchTransactions();
@@ -344,6 +375,43 @@ export default function AccountingSystem() {
     setFormData({ ...formData, receiver: value });
   };
 
+  // Handle delete saved sender
+  const handleDeleteSavedSender = async (senderToDelete: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation(); // Prevent dropdown from closing and parent click handler
+    
+    // Optimistic update: remove from UI immediately
+    const previousSenders = savedSenders;
+    const newSavedSenders = savedSenders.filter(s => s !== senderToDelete);
+    setSavedSenders(newSavedSenders);
+    
+    try {
+      const response = await fetch(`/.netlify/functions/saved-senders?sender=${encodeURIComponent(senderToDelete)}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Unable to delete sender from server.');
+      }
+      
+      // Optionally refresh from server to ensure sync (but UI already updated)
+      // No need to wait, just fire and forget
+      fetchSavedSenders().catch(() => {
+        // If refresh fails, revert to previous state
+        setSavedSenders(previousSenders);
+      });
+    } catch (error) {
+      console.error('Error deleting sender:', error);
+      // Revert to previous state if server delete failed
+      setSavedSenders(previousSenders);
+    }
+  };
+
+  // Filter saved senders based on input
+  const filteredSavedSenders = savedSenders.filter(sender =>
+    sender.toLowerCase().includes(formData.sender.toLowerCase())
+  );
+
   // ---- AUTH & VALIDATION ----
 
   const validateTransactionForm = () => {
@@ -449,6 +517,32 @@ export default function AccountingSystem() {
 
       const created: Transaction = await response.json();
       setTransactions((prev) => [created, ...prev]);
+      
+      // Save sender to server if not already present
+      const trimmedSender = formData.sender.trim();
+      if (trimmedSender && !savedSenders.includes(trimmedSender)) {
+        try {
+          const senderResponse = await fetch('/.netlify/functions/saved-senders', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ sender: trimmedSender }),
+          });
+          
+          if (senderResponse.ok) {
+            // Refresh the saved senders list from server
+            fetchSavedSenders();
+          }
+        } catch (error) {
+          console.error('Error saving sender:', error);
+          // Still update local state for better UX
+          if (!savedSenders.includes(trimmedSender)) {
+            setSavedSenders([...savedSenders, trimmedSender].sort());
+          }
+        }
+      }
+      
       setFormData(getDefaultFormState());
       setFormErrors({});
     } catch (error) {
@@ -1099,29 +1193,87 @@ export default function AccountingSystem() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
+              <div className="relative">
                   <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
                     {formData.category === 'Income' ? 'Sender *' : 'Receiver *'}
                   </label>
+                <div className="relative">
                 <input
                   type="text"
-                    placeholder={
-                      formData.category === 'Income'
-                        ? 'Name or entity sending funds'
-                        : 'Name or entity receiving funds'
-                    }
-                    value={formData.sender}
-                    onChange={(e) => setFormData({ ...formData, sender: e.target.value })}
-                    className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-900 rounded-lg focus:outline-none focus:ring-2 ${
-                      theme.mode === 'dark' 
-                        ? 'focus:ring-gray-700' 
-                        : (theme.palette === 'indigo' ? 'focus:ring-indigo-500' :
-                           theme.palette === 'blue' ? 'focus:ring-blue-500' :
-                           theme.palette === 'purple' ? 'focus:ring-purple-500' :
-                           theme.palette === 'emerald' ? 'focus:ring-emerald-500' :
-                           'focus:ring-rose-500')
-                    } text-sm bg-white dark:bg-black dark:border-gray-900 text-gray-900 dark:text-gray-100`}
-                  />
+                      placeholder={
+                        formData.category === 'Income'
+                          ? 'Name or entity sending funds'
+                          : 'Name or entity receiving funds'
+                      }
+                      value={formData.sender}
+                      onChange={(e) => {
+                        setFormData({ ...formData, sender: e.target.value });
+                        setShowSenderDropdown(true);
+                      }}
+                      onFocus={() => {
+                        if (filteredSavedSenders.length > 0) {
+                          setShowSenderDropdown(true);
+                        }
+                      }}
+                      onBlur={() => {
+                        // Delay hiding dropdown to allow clicking on items
+                        setTimeout(() => setShowSenderDropdown(false), 200);
+                      }}
+                      className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-900 rounded-lg focus:outline-none focus:ring-2 ${
+                        theme.mode === 'dark' 
+                          ? 'focus:ring-gray-700' 
+                          : (theme.palette === 'indigo' ? 'focus:ring-indigo-500' :
+                             theme.palette === 'blue' ? 'focus:ring-blue-500' :
+                             theme.palette === 'purple' ? 'focus:ring-purple-500' :
+                             theme.palette === 'emerald' ? 'focus:ring-emerald-500' :
+                             'focus:ring-rose-500')
+                      } text-sm bg-white dark:bg-black dark:border-gray-900 text-gray-900 dark:text-gray-100`}
+                    />
+                  
+                  {/* Saved Senders Dropdown */}
+                  {showSenderDropdown && filteredSavedSenders.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-white dark:bg-black border border-gray-200 dark:border-gray-900 rounded-lg shadow-lg dark:shadow-[0_10px_25px_rgba(0,0,0,0.7)] max-h-60 overflow-y-auto">
+                      {filteredSavedSenders.map((sender) => (
+                        <div
+                          key={sender}
+                          className="flex items-center justify-between px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer"
+                          onMouseDown={(e) => {
+                            // Don't trigger selection if clicking on delete button
+                            if ((e.target as HTMLElement).closest('button')) {
+                              return;
+                            }
+                            e.preventDefault(); // Prevent onBlur from firing
+                            setFormData({ ...formData, sender });
+                            setShowSenderDropdown(false);
+                          }}
+                        >
+                          <span 
+                            className="text-sm text-gray-900 dark:text-gray-100 flex-1"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setFormData({ ...formData, sender });
+                              setShowSenderDropdown(false);
+                            }}
+                          >
+                            {sender}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteSavedSender(sender, e)}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                            }}
+                            className="ml-2 p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
+                            title="Delete"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
                   {formErrors.sender && (
                     <p className="mt-1 text-xs text-red-600 dark:text-red-400">{formErrors.sender}</p>
                   )}
@@ -1828,7 +1980,7 @@ export default function AccountingSystem() {
                   <div className="space-y-2">
                      {getCategoryBreakdown(filteredTransactions, 'Expense').map((item) => {
                       const percentage = stats.expenses > 0 ? (item.total / stats.expenses * 100).toFixed(1) : 0;
-                        return (
+                      return (
                           <div key={item.sub} className="bg-red-50 dark:bg-red-900/20 rounded-lg p-3 shadow-md dark:shadow-[0_5px_15px_rgba(239,68,68,0.2)] hover:shadow-lg dark:hover:shadow-[0_8px_20px_rgba(239,68,68,0.3)] transition-all duration-300">
                           <div className="flex justify-between items-center mb-1">
                              <span className="font-semibold text-gray-700 dark:text-gray-300">{item.sub}</span>
