@@ -121,12 +121,16 @@ export default function AccountingSystem() {
   // Helper function to get primary button classes based on theme
   const getPrimaryButtonClasses = (isActive = true) => {
     if (!isActive) return 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300';
+    if (theme.mode === 'dark') {
+      return 'bg-gray-700 hover:bg-gray-600 text-white';
+    }
+    // Light mode - use palette
     const paletteMap = {
-      indigo: 'bg-indigo-600 dark:bg-indigo-600 hover:bg-indigo-700 dark:hover:bg-indigo-700',
-      blue: 'bg-blue-600 dark:bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-700',
-      purple: 'bg-purple-600 dark:bg-purple-600 hover:bg-purple-700 dark:hover:bg-purple-700',
-      emerald: 'bg-emerald-600 dark:bg-emerald-600 hover:bg-emerald-700 dark:hover:bg-emerald-700',
-      rose: 'bg-rose-600 dark:bg-rose-600 hover:bg-rose-700 dark:hover:bg-rose-700',
+      indigo: 'bg-indigo-600 hover:bg-indigo-700',
+      blue: 'bg-blue-600 hover:bg-blue-700',
+      purple: 'bg-purple-600 hover:bg-purple-700',
+      emerald: 'bg-emerald-600 hover:bg-emerald-700',
+      rose: 'bg-rose-600 hover:bg-rose-700',
     };
     return paletteMap[theme.palette] + ' text-white';
   };
@@ -709,15 +713,17 @@ export default function AccountingSystem() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       {/* Header */}
       <div className={`${
-        theme.palette === 'indigo' ? 'bg-indigo-600' :
-        theme.palette === 'blue' ? 'bg-blue-600' :
-        theme.palette === 'purple' ? 'bg-purple-600' :
-        theme.palette === 'emerald' ? 'bg-emerald-600' :
-        'bg-rose-600'
-      } text-white shadow-lg dark:bg-gray-800`}>
+        theme.mode === 'dark' 
+          ? 'bg-gray-900' 
+          : (theme.palette === 'indigo' ? 'bg-indigo-600' :
+             theme.palette === 'blue' ? 'bg-blue-600' :
+             theme.palette === 'purple' ? 'bg-purple-600' :
+             theme.palette === 'emerald' ? 'bg-emerald-600' :
+             'bg-rose-600')
+      } text-white shadow-lg`}>
         <div className="max-w-6xl mx-auto px-4 py-4 md:py-6 flex flex-col md:flex-row md:justify-between md:items-center gap-3">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">Madrasah-e-Millat Bhiwandi</h1>
@@ -756,7 +762,7 @@ export default function AccountingSystem() {
                                  theme.palette === 'purple' ? 'bg-purple-600' :
                                  theme.palette === 'emerald' ? 'bg-emerald-600' :
                                  'bg-rose-600') + ' text-white'
-                              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                           }`}
                         >
                           <Sun size={16} className="inline mr-1" />
@@ -766,12 +772,8 @@ export default function AccountingSystem() {
                           onClick={() => setTheme({ ...theme, mode: 'dark' })}
                           className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
                             theme.mode === 'dark'
-                              ? (theme.palette === 'indigo' ? 'bg-indigo-600' :
-                                 theme.palette === 'blue' ? 'bg-blue-600' :
-                                 theme.palette === 'purple' ? 'bg-purple-600' :
-                                 theme.palette === 'emerald' ? 'bg-emerald-600' :
-                                 'bg-rose-600') + ' text-white'
-                              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                              ? 'bg-gray-800 text-white'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                           }`}
                         >
                           <Moon size={16} className="inline mr-1" />
@@ -780,10 +782,11 @@ export default function AccountingSystem() {
                       </div>
                     </div>
                         
-                        {/* Color Palette */}
-                        <div>
-                          <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Color Palette</p>
-                          <div className="grid grid-cols-5 gap-2">
+                    {/* Color Palette - Only show in light mode */}
+                    {theme.mode === 'light' && (
+                    <div>
+                      <p className="text-sm font-semibold text-gray-700 mb-2">Color Palette</p>
+                      <div className="grid grid-cols-5 gap-2">
                             {(['indigo', 'blue', 'purple', 'emerald', 'rose'] as ColorPalette[]).map((palette) => {
                               const isSelected = theme.palette === palette;
                               const baseClasses = isSelected 
@@ -807,6 +810,7 @@ export default function AccountingSystem() {
                             })}
                           </div>
                         </div>
+                    )}
                       </div>
                     </>
                   )}
@@ -825,21 +829,21 @@ export default function AccountingSystem() {
       <div className="max-w-6xl mx-auto p-4">
         {/* Dashboard Stats - All Time */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 md:p-6">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-4 md:p-6">
             <p className="text-gray-600 dark:text-gray-400 text-sm">Total Income (All Time)</p>
             <p className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(allTimeStats.income)}</p>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 md:p-6">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-4 md:p-6">
             <p className="text-gray-600 dark:text-gray-400 text-sm">Total Expenses (All Time)</p>
             <p className="text-2xl font-bold text-red-600 dark:text-red-400">{formatCurrency(allTimeStats.expenses)}</p>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 md:p-6">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-4 md:p-6">
             <p className="text-gray-600 dark:text-gray-400 text-sm">Balance (All Time)</p>
             <p className={`text-2xl font-bold ${allTimeStats.balance >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-orange-600 dark:text-orange-400'}`}>
               {formatCurrency(allTimeStats.balance)}
             </p>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 md:p-6">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-4 md:p-6">
             <p className="text-gray-600 dark:text-gray-400 text-sm">Current Filter Balance</p>
             <p className={`text-2xl font-bold ${stats.balance >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-orange-600 dark:text-orange-400'}`}>
               {formatCurrency(stats.balance)}
@@ -853,13 +857,15 @@ export default function AccountingSystem() {
           </div>
         )}
         {isSyncing && (
-          <div className={`mb-4 rounded-lg border ${
-            theme.palette === 'indigo' ? 'border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400' :
-            theme.palette === 'blue' ? 'border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400' :
-            theme.palette === 'purple' ? 'border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400' :
-            theme.palette === 'emerald' ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400' :
-            'border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-400'
-          } px-4 py-3 text-sm`}>
+          <div className={`mb-4 rounded-lg border px-4 py-3 text-sm ${
+            theme.mode === 'dark'
+              ? 'border-gray-700 bg-gray-800/50 text-gray-300'
+              : (theme.palette === 'indigo' ? 'border-indigo-200 bg-indigo-50 text-indigo-700' :
+                 theme.palette === 'blue' ? 'border-blue-200 bg-blue-50 text-blue-700' :
+                 theme.palette === 'purple' ? 'border-purple-200 bg-purple-50 text-purple-700' :
+                 theme.palette === 'emerald' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' :
+                 'border-rose-200 bg-rose-50 text-rose-700')
+          }`}>
             Syncing with Netlify DB...
           </div>
         )}
@@ -870,11 +876,13 @@ export default function AccountingSystem() {
             onClick={() => setActiveTab('add')}
             className={`px-4 py-2 rounded-lg font-semibold flex items-center gap-2 ${
               activeTab === 'add'
-                ? (theme.palette === 'indigo' ? 'bg-indigo-600 dark:bg-indigo-600' :
-                   theme.palette === 'blue' ? 'bg-blue-600 dark:bg-blue-600' :
-                   theme.palette === 'purple' ? 'bg-purple-600 dark:bg-purple-600' :
-                   theme.palette === 'emerald' ? 'bg-emerald-600 dark:bg-emerald-600' :
-                   'bg-rose-600 dark:bg-rose-600') + ' text-white'
+                ? (theme.mode === 'dark' 
+                    ? 'bg-gray-700 text-white' 
+                    : (theme.palette === 'indigo' ? 'bg-indigo-600' :
+                       theme.palette === 'blue' ? 'bg-blue-600' :
+                       theme.palette === 'purple' ? 'bg-purple-600' :
+                       theme.palette === 'emerald' ? 'bg-emerald-600' :
+                       'bg-rose-600') + ' text-white')
                 : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
           >
@@ -884,11 +892,13 @@ export default function AccountingSystem() {
             onClick={() => setActiveTab('view')}
             className={`px-4 py-2 rounded-lg font-semibold ${
               activeTab === 'view'
-                ? (theme.palette === 'indigo' ? 'bg-indigo-600 dark:bg-indigo-600' :
-                   theme.palette === 'blue' ? 'bg-blue-600 dark:bg-blue-600' :
-                   theme.palette === 'purple' ? 'bg-purple-600 dark:bg-purple-600' :
-                   theme.palette === 'emerald' ? 'bg-emerald-600 dark:bg-emerald-600' :
-                   'bg-rose-600 dark:bg-rose-600') + ' text-white'
+                ? (theme.mode === 'dark' 
+                    ? 'bg-gray-700 text-white' 
+                    : (theme.palette === 'indigo' ? 'bg-indigo-600' :
+                       theme.palette === 'blue' ? 'bg-blue-600' :
+                       theme.palette === 'purple' ? 'bg-purple-600' :
+                       theme.palette === 'emerald' ? 'bg-emerald-600' :
+                       'bg-rose-600') + ' text-white')
                 : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
           >
@@ -898,11 +908,13 @@ export default function AccountingSystem() {
             onClick={() => setActiveTab('report')}
             className={`px-4 py-2 rounded-lg font-semibold ${
               activeTab === 'report'
-                ? (theme.palette === 'indigo' ? 'bg-indigo-600 dark:bg-indigo-600' :
-                   theme.palette === 'blue' ? 'bg-blue-600 dark:bg-blue-600' :
-                   theme.palette === 'purple' ? 'bg-purple-600 dark:bg-purple-600' :
-                   theme.palette === 'emerald' ? 'bg-emerald-600 dark:bg-emerald-600' :
-                   'bg-rose-600 dark:bg-rose-600') + ' text-white'
+                ? (theme.mode === 'dark' 
+                    ? 'bg-gray-700 text-white' 
+                    : (theme.palette === 'indigo' ? 'bg-indigo-600' :
+                       theme.palette === 'blue' ? 'bg-blue-600' :
+                       theme.palette === 'purple' ? 'bg-purple-600' :
+                       theme.palette === 'emerald' ? 'bg-emerald-600' :
+                       'bg-rose-600') + ' text-white')
                 : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
           >
@@ -912,7 +924,7 @@ export default function AccountingSystem() {
 
         {/* Add Transaction Tab */}
         {activeTab === 'add' && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
             <h2 className="text-2xl font-bold mb-6 dark:text-white">Add New Transaction</h2>
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -928,12 +940,14 @@ export default function AccountingSystem() {
                     }}
                     dateFormat="yyyy-MM-dd"
                     className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 ${
-                      theme.palette === 'indigo' ? 'focus:ring-indigo-500 dark:focus:ring-indigo-400' :
-                      theme.palette === 'blue' ? 'focus:ring-blue-500 dark:focus:ring-blue-400' :
-                      theme.palette === 'purple' ? 'focus:ring-purple-500 dark:focus:ring-purple-400' :
-                      theme.palette === 'emerald' ? 'focus:ring-emerald-500 dark:focus:ring-emerald-400' :
-                      'focus:ring-rose-500 dark:focus:ring-rose-400'
-                    } text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
+                      theme.mode === 'dark' 
+                        ? 'focus:ring-gray-500' 
+                        : (theme.palette === 'indigo' ? 'focus:ring-indigo-500' :
+                           theme.palette === 'blue' ? 'focus:ring-blue-500' :
+                           theme.palette === 'purple' ? 'focus:ring-purple-500' :
+                           theme.palette === 'emerald' ? 'focus:ring-emerald-500' :
+                           'focus:ring-rose-500')
+                    } text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100`}
                     placeholderText="Select date"
                   />
                   {formErrors.date && (
@@ -964,11 +978,13 @@ export default function AccountingSystem() {
                       option: (base, state) => ({
                         ...base,
                         backgroundColor: state.isSelected
-                          ? (theme.palette === 'indigo' ? '#4f46e5' :
-                             theme.palette === 'blue' ? '#2563eb' :
-                             theme.palette === 'purple' ? '#9333ea' :
-                             theme.palette === 'emerald' ? '#059669' :
-                             '#e11d48')
+                          ? (theme.mode === 'dark' 
+                              ? '#4b5563' 
+                              : (theme.palette === 'indigo' ? '#4f46e5' :
+                                 theme.palette === 'blue' ? '#2563eb' :
+                                 theme.palette === 'purple' ? '#9333ea' :
+                                 theme.palette === 'emerald' ? '#059669' :
+                                 '#e11d48'))
                           : state.isFocused
                           ? (theme.mode === 'dark' ? '#374151' : '#f3f4f6')
                           : 'transparent',
@@ -1014,11 +1030,13 @@ export default function AccountingSystem() {
                       option: (base, state) => ({
                         ...base,
                         backgroundColor: state.isSelected
-                          ? (theme.palette === 'indigo' ? '#4f46e5' :
-                             theme.palette === 'blue' ? '#2563eb' :
-                             theme.palette === 'purple' ? '#9333ea' :
-                             theme.palette === 'emerald' ? '#059669' :
-                             '#e11d48')
+                          ? (theme.mode === 'dark' 
+                              ? '#4b5563' 
+                              : (theme.palette === 'indigo' ? '#4f46e5' :
+                                 theme.palette === 'blue' ? '#2563eb' :
+                                 theme.palette === 'purple' ? '#9333ea' :
+                                 theme.palette === 'emerald' ? '#059669' :
+                                 '#e11d48'))
                           : state.isFocused
                           ? (theme.mode === 'dark' ? '#374151' : '#f3f4f6')
                           : 'transparent',
@@ -1047,12 +1065,14 @@ export default function AccountingSystem() {
                     value={formData.amount}
                     onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                     className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 ${
-                      theme.palette === 'indigo' ? 'focus:ring-indigo-500 dark:focus:ring-indigo-400' :
-                      theme.palette === 'blue' ? 'focus:ring-blue-500 dark:focus:ring-blue-400' :
-                      theme.palette === 'purple' ? 'focus:ring-purple-500 dark:focus:ring-purple-400' :
-                      theme.palette === 'emerald' ? 'focus:ring-emerald-500 dark:focus:ring-emerald-400' :
-                      'focus:ring-rose-500 dark:focus:ring-rose-400'
-                    } text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
+                      theme.mode === 'dark' 
+                        ? 'focus:ring-gray-500' 
+                        : (theme.palette === 'indigo' ? 'focus:ring-indigo-500' :
+                           theme.palette === 'blue' ? 'focus:ring-blue-500' :
+                           theme.palette === 'purple' ? 'focus:ring-purple-500' :
+                           theme.palette === 'emerald' ? 'focus:ring-emerald-500' :
+                           'focus:ring-rose-500')
+                    } text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100`}
                   />
                   {formErrors.amount && (
                     <p className="mt-1 text-xs text-red-600 dark:text-red-400">{formErrors.amount}</p>
@@ -1075,12 +1095,14 @@ export default function AccountingSystem() {
                     value={formData.sender}
                     onChange={(e) => setFormData({ ...formData, sender: e.target.value })}
                     className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 ${
-                      theme.palette === 'indigo' ? 'focus:ring-indigo-500 dark:focus:ring-indigo-400' :
-                      theme.palette === 'blue' ? 'focus:ring-blue-500 dark:focus:ring-blue-400' :
-                      theme.palette === 'purple' ? 'focus:ring-purple-500 dark:focus:ring-purple-400' :
-                      theme.palette === 'emerald' ? 'focus:ring-emerald-500 dark:focus:ring-emerald-400' :
-                      'focus:ring-rose-500 dark:focus:ring-rose-400'
-                    } text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100`}
+                      theme.mode === 'dark' 
+                        ? 'focus:ring-gray-500' 
+                        : (theme.palette === 'indigo' ? 'focus:ring-indigo-500' :
+                           theme.palette === 'blue' ? 'focus:ring-blue-500' :
+                           theme.palette === 'purple' ? 'focus:ring-purple-500' :
+                           theme.palette === 'emerald' ? 'focus:ring-emerald-500' :
+                           'focus:ring-rose-500')
+                    } text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100`}
                   />
                   {formErrors.sender && (
                     <p className="mt-1 text-xs text-red-600 dark:text-red-400">{formErrors.sender}</p>
@@ -1112,11 +1134,13 @@ export default function AccountingSystem() {
                       option: (base, state) => ({
                         ...base,
                         backgroundColor: state.isSelected
-                          ? (theme.palette === 'indigo' ? '#4f46e5' :
-                             theme.palette === 'blue' ? '#2563eb' :
-                             theme.palette === 'purple' ? '#9333ea' :
-                             theme.palette === 'emerald' ? '#059669' :
-                             '#e11d48')
+                          ? (theme.mode === 'dark' 
+                              ? '#4b5563' 
+                              : (theme.palette === 'indigo' ? '#4f46e5' :
+                                 theme.palette === 'blue' ? '#2563eb' :
+                                 theme.palette === 'purple' ? '#9333ea' :
+                                 theme.palette === 'emerald' ? '#059669' :
+                                 '#e11d48'))
                           : state.isFocused
                           ? (theme.mode === 'dark' ? '#374151' : '#f3f4f6')
                           : 'transparent',
@@ -1175,7 +1199,7 @@ export default function AccountingSystem() {
 
         {/* View Transactions Tab */}
         {activeTab === 'view' && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
               <h2 className="text-2xl font-bold dark:text-white">Transaction History</h2>
               <button
@@ -1187,62 +1211,97 @@ export default function AccountingSystem() {
             </div>
 
             {/* Date Filter for View Tab */}
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+            <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
               <div className="flex flex-wrap gap-2 mb-4">
-                <button
-                  onClick={() => handleQuickFilter('thisMonth')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${dateFilterMode === 'thisMonth'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  <button
+                    onClick={() => handleQuickFilter('thisMonth')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
+                      dateFilterMode === 'thisMonth'
+                        ? (theme.mode === 'dark' 
+                            ? 'bg-gray-700 text-white' 
+                            : (theme.palette === 'indigo' ? 'bg-indigo-600' :
+                               theme.palette === 'blue' ? 'bg-blue-600' :
+                               theme.palette === 'purple' ? 'bg-purple-600' :
+                               theme.palette === 'emerald' ? 'bg-emerald-600' :
+                               'bg-rose-600') + ' text-white')
+                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
-                >
-                  This Month
-                </button>
-                <button
-                  onClick={() => handleQuickFilter('thisQuarter')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${dateFilterMode === 'thisQuarter'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  >
+                    This Month
+                  </button>
+                  <button
+                    onClick={() => handleQuickFilter('thisQuarter')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
+                      dateFilterMode === 'thisQuarter'
+                        ? (theme.mode === 'dark' 
+                            ? 'bg-gray-700 text-white' 
+                            : (theme.palette === 'indigo' ? 'bg-indigo-600' :
+                               theme.palette === 'blue' ? 'bg-blue-600' :
+                               theme.palette === 'purple' ? 'bg-purple-600' :
+                               theme.palette === 'emerald' ? 'bg-emerald-600' :
+                               'bg-rose-600') + ' text-white')
+                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
-                >
-                  This Quarter
-                </button>
-                <button
-                  onClick={() => handleQuickFilter('thisFiscalYear')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${dateFilterMode === 'thisFiscalYear'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  >
+                    This Quarter
+                  </button>
+                  <button
+                    onClick={() => handleQuickFilter('thisFiscalYear')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
+                      dateFilterMode === 'thisFiscalYear'
+                        ? (theme.mode === 'dark' 
+                            ? 'bg-gray-700 text-white' 
+                            : (theme.palette === 'indigo' ? 'bg-indigo-600' :
+                               theme.palette === 'blue' ? 'bg-blue-600' :
+                               theme.palette === 'purple' ? 'bg-purple-600' :
+                               theme.palette === 'emerald' ? 'bg-emerald-600' :
+                               'bg-rose-600') + ' text-white')
+                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
-                >
-                  This Fiscal Year
-                </button>
-                <button
-                  onClick={() => handleQuickFilter('allTime')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${dateFilterMode === 'allTime'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  >
+                    This Fiscal Year
+                  </button>
+                  <button
+                    onClick={() => handleQuickFilter('allTime')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
+                      dateFilterMode === 'allTime'
+                        ? (theme.mode === 'dark' 
+                            ? 'bg-gray-700 text-white' 
+                            : (theme.palette === 'indigo' ? 'bg-indigo-600' :
+                               theme.palette === 'blue' ? 'bg-blue-600' :
+                               theme.palette === 'purple' ? 'bg-purple-600' :
+                               theme.palette === 'emerald' ? 'bg-emerald-600' :
+                               'bg-rose-600') + ' text-white')
+                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
-                >
-                  All Time
-                </button>
-                <button
-                  onClick={() => {
-                    if (dateFilterMode !== 'custom') {
-                      // When switching to custom, preserve current range if available
-                      if (dateFilterMode !== 'allTime') {
-                        const currentRange = getDateRangeForMode(dateFilterMode);
-                        setDateRange(currentRange);
+                  >
+                    All Time
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (dateFilterMode !== 'custom') {
+                        // When switching to custom, preserve current range if available
+                        if (dateFilterMode !== 'allTime') {
+                          const currentRange = getDateRangeForMode(dateFilterMode);
+                          setDateRange(currentRange);
+                        }
                       }
-                    }
-                    setDateFilterMode('custom');
-                  }}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1 ${dateFilterMode === 'custom'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                      setDateFilterMode('custom');
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1 ${
+                      dateFilterMode === 'custom'
+                        ? (theme.mode === 'dark' 
+                            ? 'bg-gray-700 text-white' 
+                            : (theme.palette === 'indigo' ? 'bg-indigo-600' :
+                               theme.palette === 'blue' ? 'bg-blue-600' :
+                               theme.palette === 'purple' ? 'bg-purple-600' :
+                               theme.palette === 'emerald' ? 'bg-emerald-600' :
+                               'bg-rose-600') + ' text-white')
+                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
-                >
-                  <Calendar size={14} /> Custom Range
-                </button>
+                  >
+                    <Calendar size={14} /> Custom Range
+                  </button>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
@@ -1268,7 +1327,15 @@ export default function AccountingSystem() {
                         type="date"
                         value={dateRange.fromDate}
                         onChange={(e) => setDateRange({ ...dateRange, fromDate: e.target.value })}
-                        className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm [color-scheme:light] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-3 [&::-webkit-calendar-picker-indicator]:w-4 [&::-webkit-calendar-picker-indicator]:h-4 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                        className={`w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 ${
+                          theme.mode === 'dark' 
+                            ? 'focus:ring-gray-500' 
+                            : (theme.palette === 'indigo' ? 'focus:ring-indigo-500' :
+                               theme.palette === 'blue' ? 'focus:ring-blue-500' :
+                               theme.palette === 'purple' ? 'focus:ring-purple-500' :
+                               theme.palette === 'emerald' ? 'focus:ring-emerald-500' :
+                               'focus:ring-rose-500')
+                        } text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 [color-scheme:light] dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-3 [&::-webkit-calendar-picker-indicator]:w-4 [&::-webkit-calendar-picker-indicator]:h-4 [&::-webkit-calendar-picker-indicator]:cursor-pointer`}
                       />
                       <Calendar className="absolute right-3 top-2.5 h-4 w-4 text-gray-400 pointer-events-none z-10" />
                     </div>
@@ -1280,7 +1347,15 @@ export default function AccountingSystem() {
                         type="date"
                         value={dateRange.toDate}
                         onChange={(e) => setDateRange({ ...dateRange, toDate: e.target.value })}
-                        className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm [color-scheme:light] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-3 [&::-webkit-calendar-picker-indicator]:w-4 [&::-webkit-calendar-picker-indicator]:h-4 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                        className={`w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 ${
+                          theme.mode === 'dark' 
+                            ? 'focus:ring-gray-500' 
+                            : (theme.palette === 'indigo' ? 'focus:ring-indigo-500' :
+                               theme.palette === 'blue' ? 'focus:ring-blue-500' :
+                               theme.palette === 'purple' ? 'focus:ring-purple-500' :
+                               theme.palette === 'emerald' ? 'focus:ring-emerald-500' :
+                               'focus:ring-rose-500')
+                        } text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 [color-scheme:light] dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-3 [&::-webkit-calendar-picker-indicator]:w-4 [&::-webkit-calendar-picker-indicator]:h-4 [&::-webkit-calendar-picker-indicator]:cursor-pointer`}
                       />
                       <Calendar className="absolute right-3 top-2.5 h-4 w-4 text-gray-400 pointer-events-none z-10" />
                     </div>
@@ -1347,7 +1422,7 @@ export default function AccountingSystem() {
 
         {/* Monthly Report Tab */}
         {activeTab === 'report' && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow p-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
               <div>
                 <h2 className="text-2xl font-bold dark:text-white">Financial Report</h2>
@@ -1377,11 +1452,13 @@ export default function AccountingSystem() {
                   onClick={() => handleQuickFilter('thisMonth')}
                   className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
                     dateFilterMode === 'thisMonth'
-                      ? (theme.palette === 'indigo' ? 'bg-indigo-600 dark:bg-indigo-600' :
-                         theme.palette === 'blue' ? 'bg-blue-600 dark:bg-blue-600' :
-                         theme.palette === 'purple' ? 'bg-purple-600 dark:bg-purple-600' :
-                         theme.palette === 'emerald' ? 'bg-emerald-600 dark:bg-emerald-600' :
-                         'bg-rose-600 dark:bg-rose-600') + ' text-white'
+                      ? (theme.mode === 'dark' 
+                          ? 'bg-gray-700 text-white' 
+                          : (theme.palette === 'indigo' ? 'bg-indigo-600' :
+                             theme.palette === 'blue' ? 'bg-blue-600' :
+                             theme.palette === 'purple' ? 'bg-purple-600' :
+                             theme.palette === 'emerald' ? 'bg-emerald-600' :
+                             'bg-rose-600') + ' text-white')
                       : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}
                 >
@@ -1391,11 +1468,13 @@ export default function AccountingSystem() {
                   onClick={() => handleQuickFilter('thisQuarter')}
                   className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
                     dateFilterMode === 'thisQuarter'
-                      ? (theme.palette === 'indigo' ? 'bg-indigo-600 dark:bg-indigo-600' :
-                         theme.palette === 'blue' ? 'bg-blue-600 dark:bg-blue-600' :
-                         theme.palette === 'purple' ? 'bg-purple-600 dark:bg-purple-600' :
-                         theme.palette === 'emerald' ? 'bg-emerald-600 dark:bg-emerald-600' :
-                         'bg-rose-600 dark:bg-rose-600') + ' text-white'
+                      ? (theme.mode === 'dark' 
+                          ? 'bg-gray-700 text-white' 
+                          : (theme.palette === 'indigo' ? 'bg-indigo-600' :
+                             theme.palette === 'blue' ? 'bg-blue-600' :
+                             theme.palette === 'purple' ? 'bg-purple-600' :
+                             theme.palette === 'emerald' ? 'bg-emerald-600' :
+                             'bg-rose-600') + ' text-white')
                       : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}
                 >
@@ -1405,11 +1484,13 @@ export default function AccountingSystem() {
                   onClick={() => handleQuickFilter('thisFiscalYear')}
                   className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
                     dateFilterMode === 'thisFiscalYear'
-                      ? (theme.palette === 'indigo' ? 'bg-indigo-600 dark:bg-indigo-600' :
-                         theme.palette === 'blue' ? 'bg-blue-600 dark:bg-blue-600' :
-                         theme.palette === 'purple' ? 'bg-purple-600 dark:bg-purple-600' :
-                         theme.palette === 'emerald' ? 'bg-emerald-600 dark:bg-emerald-600' :
-                         'bg-rose-600 dark:bg-rose-600') + ' text-white'
+                      ? (theme.mode === 'dark' 
+                          ? 'bg-gray-700 text-white' 
+                          : (theme.palette === 'indigo' ? 'bg-indigo-600' :
+                             theme.palette === 'blue' ? 'bg-blue-600' :
+                             theme.palette === 'purple' ? 'bg-purple-600' :
+                             theme.palette === 'emerald' ? 'bg-emerald-600' :
+                             'bg-rose-600') + ' text-white')
                       : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}
                 >
@@ -1417,10 +1498,17 @@ export default function AccountingSystem() {
                 </button>
                 <button
                   onClick={() => handleQuickFilter('allTime')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${dateFilterMode === 'allTime'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                    }`}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
+                    dateFilterMode === 'allTime'
+                      ? (theme.mode === 'dark' 
+                          ? 'bg-gray-700 text-white' 
+                          : (theme.palette === 'indigo' ? 'bg-indigo-600' :
+                             theme.palette === 'blue' ? 'bg-blue-600' :
+                             theme.palette === 'purple' ? 'bg-purple-600' :
+                             theme.palette === 'emerald' ? 'bg-emerald-600' :
+                             'bg-rose-600') + ' text-white')
+                      : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }`}
                 >
                   All Time
                 </button>
@@ -1435,10 +1523,17 @@ export default function AccountingSystem() {
                     }
                     setDateFilterMode('custom');
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1 ${dateFilterMode === 'custom'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                    }`}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1 ${
+                    dateFilterMode === 'custom'
+                      ? (theme.mode === 'dark' 
+                          ? 'bg-gray-700 text-white' 
+                          : (theme.palette === 'indigo' ? 'bg-indigo-600' :
+                             theme.palette === 'blue' ? 'bg-blue-600' :
+                             theme.palette === 'purple' ? 'bg-purple-600' :
+                             theme.palette === 'emerald' ? 'bg-emerald-600' :
+                             'bg-rose-600') + ' text-white')
+                      : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  }`}
                 >
                   <Calendar size={14} /> Custom Range
                 </button>
@@ -1455,12 +1550,14 @@ export default function AccountingSystem() {
                         value={dateRange.fromDate}
                         onChange={(e) => setDateRange({ ...dateRange, fromDate: e.target.value })}
                         className={`w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 ${
-                          theme.palette === 'indigo' ? 'focus:ring-indigo-500 dark:focus:ring-indigo-400' :
-                          theme.palette === 'blue' ? 'focus:ring-blue-500 dark:focus:ring-blue-400' :
-                          theme.palette === 'purple' ? 'focus:ring-purple-500 dark:focus:ring-purple-400' :
-                          theme.palette === 'emerald' ? 'focus:ring-emerald-500 dark:focus:ring-emerald-400' :
-                          'focus:ring-rose-500 dark:focus:ring-rose-400'
-                        } text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 [color-scheme:light] dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-3 [&::-webkit-calendar-picker-indicator]:w-4 [&::-webkit-calendar-picker-indicator]:h-4 [&::-webkit-calendar-picker-indicator]:cursor-pointer`}
+                          theme.mode === 'dark' 
+                            ? 'focus:ring-gray-500' 
+                            : (theme.palette === 'indigo' ? 'focus:ring-indigo-500' :
+                               theme.palette === 'blue' ? 'focus:ring-blue-500' :
+                               theme.palette === 'purple' ? 'focus:ring-purple-500' :
+                               theme.palette === 'emerald' ? 'focus:ring-emerald-500' :
+                               'focus:ring-rose-500')
+                        } text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 [color-scheme:light] dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-3 [&::-webkit-calendar-picker-indicator]:w-4 [&::-webkit-calendar-picker-indicator]:h-4 [&::-webkit-calendar-picker-indicator]:cursor-pointer`}
                       />
                       <Calendar className="absolute right-3 top-2.5 h-4 w-4 text-gray-400 dark:text-gray-500 pointer-events-none z-10" />
                     </div>
@@ -1473,12 +1570,14 @@ export default function AccountingSystem() {
                         value={dateRange.toDate}
                         onChange={(e) => setDateRange({ ...dateRange, toDate: e.target.value })}
                         className={`w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 ${
-                          theme.palette === 'indigo' ? 'focus:ring-indigo-500 dark:focus:ring-indigo-400' :
-                          theme.palette === 'blue' ? 'focus:ring-blue-500 dark:focus:ring-blue-400' :
-                          theme.palette === 'purple' ? 'focus:ring-purple-500 dark:focus:ring-purple-400' :
-                          theme.palette === 'emerald' ? 'focus:ring-emerald-500 dark:focus:ring-emerald-400' :
-                          'focus:ring-rose-500 dark:focus:ring-rose-400'
-                        } text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 [color-scheme:light] dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-3 [&::-webkit-calendar-picker-indicator]:w-4 [&::-webkit-calendar-picker-indicator]:h-4 [&::-webkit-calendar-picker-indicator]:cursor-pointer`}
+                          theme.mode === 'dark' 
+                            ? 'focus:ring-gray-500' 
+                            : (theme.palette === 'indigo' ? 'focus:ring-indigo-500' :
+                               theme.palette === 'blue' ? 'focus:ring-blue-500' :
+                               theme.palette === 'purple' ? 'focus:ring-purple-500' :
+                               theme.palette === 'emerald' ? 'focus:ring-emerald-500' :
+                               'focus:ring-rose-500')
+                        } text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 [color-scheme:light] dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-3 [&::-webkit-calendar-picker-indicator]:w-4 [&::-webkit-calendar-picker-indicator]:h-4 [&::-webkit-calendar-picker-indicator]:cursor-pointer`}
                       />
                       <Calendar className="absolute right-3 top-2.5 h-4 w-4 text-gray-400 dark:text-gray-500 pointer-events-none z-10" />
                     </div>
