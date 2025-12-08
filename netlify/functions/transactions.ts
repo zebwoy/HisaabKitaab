@@ -54,7 +54,9 @@ const handler: Handler = async (event) => {
         filters.push(`date <= $${params.length}`);
       }
 
-      const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+      // Always filter out soft-deleted transactions
+      filters.push(`(IsDeleted IS NULL OR IsDeleted != 'Y')`);
+      const whereClause = `WHERE ${filters.join(' AND ')}`;
       const result = await runQuery<{
         id: number;
         date: string;
@@ -106,8 +108,8 @@ const handler: Handler = async (event) => {
       }
 
       const result = await runQuery(
-        `INSERT INTO transactions (date, category, subcategory, sender, receiver, remarks, amount)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO transactions (date, category, subcategory, sender, receiver, remarks, amount, IsDeleted)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'N')
          RETURNING id, date, category, subcategory, sender, receiver, remarks, amount, created_at`,
         [
           payload.date,
@@ -137,7 +139,11 @@ const handler: Handler = async (event) => {
         };
       }
 
-      await runQuery('DELETE FROM transactions WHERE id = $1', [Number(id)]);
+      // Soft delete: Mark transaction as deleted instead of actually deleting it
+      await runQuery(
+        `UPDATE transactions SET IsDeleted = 'Y' WHERE id = $1 AND (IsDeleted IS NULL OR IsDeleted != 'Y')`,
+        [Number(id)]
+      );
       return {
         statusCode: 204,
         headers: corsHeaders,
