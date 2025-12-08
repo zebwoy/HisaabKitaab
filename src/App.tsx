@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Plus,
   Download,
@@ -77,6 +77,10 @@ export default function AccountingSystem() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [dataError, setDataError] = useState('');
   const [receiverFilter, setReceiverFilter] = useState<string>('');
+  const [showSuccessAck, setShowSuccessAck] = useState(false);
+  const successTimer = useRef<number | null>(null);
+  const [playSoundOnSuccess, setPlaySoundOnSuccess] = useState(true);
+
 
   // Date range filter state
   const [dateRange, setDateRange] = useState({
@@ -357,6 +361,42 @@ export default function AccountingSystem() {
     sessionStorage.removeItem('madrasah_logged_in');
   };
 
+
+  // Ka-ching cash register sound for transaction acknowledgment
+  // Place your sound file at: public/sounds/ka-ching.mp3
+  const playChime = () => {
+    if (!playSoundOnSuccess) return;
+    
+    try {
+      const audio = new Audio('/sounds/ka-ching.mp3');
+      audio.volume = 0.7; // Set volume to 70%
+      audio.play().catch((err) => {
+        // Silently fail if audio can't play (e.g., user interaction required or file not found)
+        console.debug('Audio playback failed:', err);
+      });
+    } catch (error) {
+      // Silently fail if audio creation fails
+      console.debug('Audio creation failed:', error);
+    }
+  };
+
+  const triggerSuccessAck = () => {
+    setShowSuccessAck(true);
+    if (successTimer.current) {
+      window.clearTimeout(successTimer.current);
+    }
+    successTimer.current = window.setTimeout(() => setShowSuccessAck(false), 1600);
+    playChime();
+  };
+
+  useEffect(() => {
+    return () => {
+      if (successTimer.current) {
+        window.clearTimeout(successTimer.current);
+      }
+    };
+  }, []);
+
   const handleAddTransaction = async () => {
     if (!validateTransactionForm()) return;
     setIsSyncing(true);
@@ -387,6 +427,7 @@ export default function AccountingSystem() {
       setTransactions((prev) => [created, ...prev]);
       setFormData(getDefaultFormState());
       setFormErrors({});
+      triggerSuccessAck();
     } catch (error) {
       setDataError((error as Error).message || 'Unable to save the transaction.');
     } finally {
@@ -447,7 +488,9 @@ export default function AccountingSystem() {
       ? `${dateRange.fromDate}_to_${dateRange.toDate}`
       : dateFilterMode;
 
-    const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    const csv = [headers, ...rows]
+      .map(row => row.map(cell => `"${cell}"`).join(','))
+      .join('\n');
 
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -664,6 +707,22 @@ export default function AccountingSystem() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {showSuccessAck && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
+          <div className="relative z-10 bg-white rounded-2xl shadow-2xl px-8 py-6 flex flex-col items-center gap-3">
+            <div className="relative">
+              <span className="absolute inset-0 rounded-full bg-emerald-200 animate-ping" />
+              <div className="h-16 w-16 rounded-full bg-gradient-to-br from-amber-400 to-amber-500 shadow-lg flex items-center justify-center text-3xl font-bold text-amber-50 animate-bounce motion-reduce:animate-none">
+                ₹
+              </div>
+            </div>
+            <div className="text-lg font-semibold text-slate-900">Transaction saved</div>
+            <p className="text-sm text-slate-600">Balance and reports updated.</p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-indigo-600 text-white shadow-lg">
         <div className="max-w-6xl mx-auto px-4 py-4 md:py-6 flex flex-col md:flex-row md:justify-between md:items-center gap-3">
@@ -892,6 +951,19 @@ export default function AccountingSystem() {
                 )}
               </div>
 
+              <div className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  id="success-sound"
+                  type="checkbox"
+                  checked={playSoundOnSuccess}
+                  onChange={(e) => setPlaySoundOnSuccess(e.target.checked)}
+                  className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                />
+                <label htmlFor="success-sound" className="select-none">
+                  Play sound on successful entry
+                </label>
+              </div>
+              
               <button
                 onClick={handleAddTransaction}
                 disabled={isSyncing}
@@ -1438,3 +1510,4 @@ export default function AccountingSystem() {
     </div>
   );
 }
+
