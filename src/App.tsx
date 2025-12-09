@@ -1818,13 +1818,25 @@ export default function AccountingSystem() {
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-600">{t.remarks || '-'}</td>
                           <td className="px-4 py-3 text-center">
-                            <button
-                              onClick={() => handleDeleteTransaction(t.id)}
-                              disabled={isSyncing}
-                              className={`text-red-600 hover:text-red-800 font-semibold text-sm transition-colors ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                              Delete
-                            </button>
+                            <div className="flex items-center justify-center gap-3">
+                              <button
+                                onClick={() => handleEditTransaction(t)}
+                                disabled={isSyncing}
+                                className={`text-indigo-600 hover:text-indigo-800 font-semibold text-sm flex items-center gap-1 transition-colors ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                title="Edit transaction"
+                              >
+                                <Edit size={16} />
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTransaction(t.id)}
+                                disabled={isSyncing}
+                                className={`text-red-600 hover:text-red-800 font-semibold text-sm transition-colors ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                title="Delete transaction"
+                              >
+                                Delete
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
