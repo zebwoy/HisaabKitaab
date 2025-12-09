@@ -8,6 +8,11 @@ import {
   Calendar,
   TrendingUp,
   TrendingDown,
+  ChevronUp,
+  ChevronDown,
+  X,
+  Filter,
+  Check,
 } from 'lucide-react';
 import DatePicker from 'react-datepicker';
 import Select, { SingleValue } from 'react-select';
@@ -89,6 +94,42 @@ export default function AccountingSystem() {
   });
   const [dateFilterMode, setDateFilterMode] = useState<'thisMonth' | 'thisQuarter' | 'thisFiscalYear' | 'allTime' | 'custom'>('thisMonth'); // 'custom', 'thisMonth', 'thisQuarter', 'thisFiscalYear', 'allTime'
 
+  // Enhanced table state for View Transactions tab
+  interface ColumnFilter {
+    textFilter: string;
+    textOperator: 'contains' | 'equals' | 'starts' | 'ends';
+    selectedValues: string[];
+    dateFrom: string;
+    dateTo: string;
+    amountMin: string;
+    amountMax: string;
+  }
+
+  const defaultColumnFilter: ColumnFilter = {
+    textFilter: '',
+    textOperator: 'contains',
+    selectedValues: [],
+    dateFrom: '',
+    dateTo: '',
+    amountMin: '',
+    amountMax: '',
+  };
+
+  const [tableColumnFilters, setTableColumnFilters] = useState<Record<string, ColumnFilter>>({
+    date: { ...defaultColumnFilter },
+    category: { ...defaultColumnFilter },
+    subcategory: { ...defaultColumnFilter },
+    sender: { ...defaultColumnFilter },
+    receiver: { ...defaultColumnFilter },
+    amount: { ...defaultColumnFilter },
+    remarks: { ...defaultColumnFilter },
+  });
+  const [openFilterPopup, setOpenFilterPopup] = useState<string | null>(null);
+  const [tableSortColumn, setTableSortColumn] = useState<string>('date');
+  const [tableSortDirection, setTableSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [tableCurrentPage, setTableCurrentPage] = useState<number>(1);
+  const [tablePageSize] = useState<number>(20);
+
   // ---- MASTER DATA ----
 
   const incomeSubcategories = ['Donations', 'Student Fees', 'Grants', 'Other Income'];
@@ -108,10 +149,6 @@ export default function AccountingSystem() {
     { value: 'AbdurRauf', label: 'AbdurRauf' },
     { value: 'Rahib', label: 'Rahib' },
     { value: 'Ayman', label: 'Ayman' },
-  ];
-  const receiverFilterOptions: ReceiverOption[] = [
-    { value: '', label: 'All Receivers' },
-    ...receiverOptions,
   ];
 
   const fetchTransactions = useCallback(async () => {
@@ -537,11 +574,194 @@ export default function AccountingSystem() {
     }));
   };
 
+  // Filtered transactions for Financial Reports tab (with date and receiver filters)
   const filteredTransactions = getFilteredTransactions();
   const stats = calculateStats(filteredTransactions);
   const allTimeStats = calculateStats(transactions);
   const previousPeriodStats = calculateStats(getPreviousPeriodTransactions());
   const previousRange = getPreviousPeriodRange();
+
+  // Enhanced table filtering, sorting, and pagination for View Transactions tab
+  const getTableFilteredTransactions = (): Transaction[] => {
+    let filtered = [...transactions];
+
+    // Apply column filters
+    Object.entries(tableColumnFilters).forEach(([column, filter]) => {
+      const columnKey = column as keyof Transaction;
+      
+      // Text filter
+      if (filter.textFilter.trim()) {
+        const lowerFilter = filter.textFilter.toLowerCase();
+        filtered = filtered.filter(t => {
+          const value = String(t[columnKey] || '').toLowerCase();
+          switch (filter.textOperator) {
+            case 'equals':
+              return value === lowerFilter;
+            case 'starts':
+              return value.startsWith(lowerFilter);
+            case 'ends':
+              return value.endsWith(lowerFilter);
+            case 'contains':
+            default:
+              return value.includes(lowerFilter);
+          }
+        });
+      }
+
+      // Multi-select filter
+      if (filter.selectedValues.length > 0) {
+        filtered = filtered.filter(t => {
+          const value = String(t[columnKey] || '');
+          return filter.selectedValues.includes(value);
+        });
+      }
+
+      // Date range filter
+      if (column === 'date') {
+        if (filter.dateFrom) {
+          filtered = filtered.filter(t => t.date >= filter.dateFrom);
+        }
+        if (filter.dateTo) {
+          filtered = filtered.filter(t => t.date <= filter.dateTo);
+        }
+      }
+
+      // Amount range filter
+      if (column === 'amount') {
+        if (filter.amountMin) {
+          const min = Number(filter.amountMin);
+          if (!isNaN(min)) {
+            filtered = filtered.filter(t => Number(t.amount) >= min);
+          }
+        }
+        if (filter.amountMax) {
+          const max = Number(filter.amountMax);
+          if (!isNaN(max)) {
+            filtered = filtered.filter(t => Number(t.amount) <= max);
+          }
+        }
+      }
+    });
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let aVal: any = a[tableSortColumn as keyof Transaction];
+      let bVal: any = b[tableSortColumn as keyof Transaction];
+
+      if (tableSortColumn === 'date') {
+        aVal = new Date(aVal).getTime();
+        bVal = new Date(bVal).getTime();
+      } else if (tableSortColumn === 'amount') {
+        aVal = Number(aVal) || 0;
+        bVal = Number(bVal) || 0;
+      } else {
+        aVal = String(aVal || '').toLowerCase();
+        bVal = String(bVal || '').toLowerCase();
+      }
+
+      if (tableSortDirection === 'asc') {
+        return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+      } else {
+        return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+      }
+    });
+
+    return filtered;
+  };
+
+  const tableFilteredTransactions = getTableFilteredTransactions();
+  const tableTotalPages = Math.ceil(tableFilteredTransactions.length / tablePageSize);
+  const tablePaginatedTransactions = tableFilteredTransactions.slice(
+    (tableCurrentPage - 1) * tablePageSize,
+    tableCurrentPage * tablePageSize
+  );
+
+  const handleTableSort = (column: string) => {
+    if (tableSortColumn === column) {
+      setTableSortDirection(tableSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setTableSortColumn(column);
+      setTableSortDirection('desc');
+    }
+    setTableCurrentPage(1); // Reset to first page on sort
+  };
+
+  const updateColumnFilter = (column: string, updates: Partial<ColumnFilter>) => {
+    setTableColumnFilters(prev => ({
+      ...prev,
+      [column]: { ...prev[column], ...updates }
+    }));
+    setTableCurrentPage(1);
+  };
+
+  const clearTableFilters = () => {
+    setTableColumnFilters({
+      date: { ...defaultColumnFilter },
+      category: { ...defaultColumnFilter },
+      subcategory: { ...defaultColumnFilter },
+      sender: { ...defaultColumnFilter },
+      receiver: { ...defaultColumnFilter },
+      amount: { ...defaultColumnFilter },
+      remarks: { ...defaultColumnFilter },
+    });
+    setTableCurrentPage(1);
+  };
+
+  const hasActiveFilters = () => {
+    return Object.values(tableColumnFilters).some(filter => 
+      filter.textFilter.trim() !== '' ||
+      filter.selectedValues.length > 0 ||
+      filter.dateFrom !== '' ||
+      filter.dateTo !== '' ||
+      filter.amountMin !== '' ||
+      filter.amountMax !== ''
+    );
+  };
+
+  const handleFilterPopupToggle = (column: string, event?: React.MouseEvent<HTMLButtonElement>) => {
+    if (event) {
+      event.stopPropagation();
+    }
+    if (openFilterPopup === column) {
+      setOpenFilterPopup(null);
+    } else {
+      setOpenFilterPopup(column);
+    }
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (openFilterPopup && !(event.target as Element).closest('.filter-popup, .filter-button')) {
+        setOpenFilterPopup(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [openFilterPopup]);
+
+  // Get unique values for a column (for multi-select filters)
+  const getUniqueColumnValues = (column: keyof Transaction): string[] => {
+    const values = new Set<string>();
+    transactions.forEach(t => {
+      const value = String(t[column] || '').trim();
+      if (value) values.add(value);
+    });
+    return Array.from(values).sort();
+  };
+
+  // Check if a column has active filters
+  const columnHasActiveFilter = (column: string): boolean => {
+    const filter = tableColumnFilters[column];
+    if (!filter) return false;
+    return (
+      filter.textFilter.trim() !== '' ||
+      filter.selectedValues.length > 0 ||
+      filter.dateFrom !== '' ||
+      filter.dateTo !== '' ||
+      filter.amountMin !== '' ||
+      filter.amountMax !== ''
+    );
+  };
 
   const formatCurrency = (value: number) => {
     const n = Number(value);
@@ -626,6 +846,205 @@ export default function AccountingSystem() {
   const formatPreviousPeriodLabel = () => {
     if (!previousRange) return '';
     return `Same period last year: ${formatDisplayDateShort(previousRange.fromDate)} – ${formatDisplayDateShort(previousRange.toDate)}`;
+  };
+
+  // Excel-style Filter Popup Component
+  const FilterPopup = ({ column, label }: { column: string; label: string }) => {
+    if (openFilterPopup !== column) return null;
+    
+    const filter = tableColumnFilters[column];
+    const uniqueValues = getUniqueColumnValues(column as keyof Transaction);
+    const isDateColumn = column === 'date';
+    const isAmountColumn = column === 'amount';
+    const isTextColumn = !isDateColumn && !isAmountColumn;
+
+    return (
+      <>
+        {/* Mobile overlay backdrop */}
+        <div 
+          className="fixed inset-0 bg-black/20 z-40 md:hidden"
+          onClick={() => setOpenFilterPopup(null)}
+        />
+        <div className="filter-popup fixed md:absolute z-50 bg-white border border-gray-300 rounded-lg shadow-xl w-[calc(100vw-2rem)] max-w-sm md:w-80 md:max-w-none max-h-[80vh] md:max-h-96 overflow-y-auto top-1/2 md:top-full left-1/2 md:left-0 -translate-x-1/2 md:translate-x-0 md:translate-y-0 -translate-y-1/2 md:mt-1">
+        <div className="p-4 border-b border-gray-200 bg-gray-50">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold text-gray-900">Filter by {label}</h3>
+            <button
+              onClick={() => setOpenFilterPopup(null)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-4 space-y-4">
+          {/* Sort Options */}
+          <div className="border-b border-gray-200 pb-3">
+            <p className="text-xs font-semibold text-gray-700 mb-2">Sort</p>
+            <div className="space-y-1">
+              <button
+                onClick={() => {
+                  handleTableSort(column);
+                  setOpenFilterPopup(null);
+                }}
+                className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 rounded flex items-center justify-between"
+              >
+                <span>Sort A to Z</span>
+                {tableSortColumn === column && tableSortDirection === 'asc' && (
+                  <Check size={14} className="text-indigo-600" />
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  if (tableSortColumn === column) {
+                    setTableSortDirection('desc');
+                  } else {
+                    setTableSortColumn(column);
+                    setTableSortDirection('desc');
+                  }
+                  setTableCurrentPage(1);
+                  setOpenFilterPopup(null);
+                }}
+                className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 rounded flex items-center justify-between"
+              >
+                <span>Sort Z to A</span>
+                {tableSortColumn === column && tableSortDirection === 'desc' && (
+                  <Check size={14} className="text-indigo-600" />
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Text Filter */}
+          {isTextColumn && (
+            <>
+              <div>
+                <p className="text-xs font-semibold text-gray-700 mb-2">Text Filters</p>
+                <Select
+                  value={{ value: filter.textOperator, label: filter.textOperator.charAt(0).toUpperCase() + filter.textOperator.slice(1) }}
+                  onChange={(option) => updateColumnFilter(column, { textOperator: (option?.value || 'contains') as any })}
+                  options={[
+                    { value: 'contains', label: 'Contains' },
+                    { value: 'equals', label: 'Equals' },
+                    { value: 'starts', label: 'Starts with' },
+                    { value: 'ends', label: 'Ends with' },
+                  ]}
+                  className="text-xs mb-2"
+                  classNamePrefix="hk-select"
+                />
+                <input
+                  type="text"
+                  placeholder={`Filter ${label.toLowerCase()}...`}
+                  value={filter.textFilter}
+                  onChange={(e) => updateColumnFilter(column, { textFilter: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              {/* Multi-select for unique values */}
+              {uniqueValues.length > 0 && uniqueValues.length <= 50 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-700 mb-2">Select values</p>
+                  <div className="max-h-40 overflow-y-auto border border-gray-200 rounded p-2 space-y-1">
+                    {uniqueValues.map((value) => (
+                      <label
+                        key={value}
+                        className="flex items-center gap-2 px-2 py-1 hover:bg-gray-100 rounded cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={filter.selectedValues.includes(value)}
+                          onChange={(e) => {
+                            const newValues = e.target.checked
+                              ? [...filter.selectedValues, value]
+                              : filter.selectedValues.filter(v => v !== value);
+                            updateColumnFilter(column, { selectedValues: newValues });
+                          }}
+                          className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                        />
+                        <span className="text-sm text-gray-700">{value}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Date Range Filter */}
+          {isDateColumn && (
+            <div>
+              <p className="text-xs font-semibold text-gray-700 mb-2">Date Range</p>
+              <div className="space-y-2">
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">From</label>
+                  <input
+                    type="date"
+                    value={filter.dateFrom}
+                    onChange={(e) => updateColumnFilter(column, { dateFrom: e.target.value })}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">To</label>
+                  <input
+                    type="date"
+                    value={filter.dateTo}
+                    onChange={(e) => updateColumnFilter(column, { dateTo: e.target.value })}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Amount Range Filter */}
+          {isAmountColumn && (
+            <div>
+              <p className="text-xs font-semibold text-gray-700 mb-2">Amount Range</p>
+              <div className="space-y-2">
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">Minimum</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={filter.amountMin}
+                    onChange={(e) => updateColumnFilter(column, { amountMin: e.target.value })}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">Maximum</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={filter.amountMax}
+                    onChange={(e) => updateColumnFilter(column, { amountMax: e.target.value })}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Clear Filter Button */}
+          {(columnHasActiveFilter(column)) && (
+            <button
+              onClick={() => {
+                updateColumnFilter(column, defaultColumnFilter);
+              }}
+              className="w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 border border-red-200 rounded-lg font-semibold"
+            >
+              Clear Filter
+            </button>
+          )}
+        </div>
+      </div>
+      </>
+    );
   };
 
   // Login Screen
@@ -979,170 +1398,311 @@ export default function AccountingSystem() {
         {activeTab === 'view' && (
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-              <h2 className="text-2xl font-bold">Transaction History</h2>
-              <button
-                onClick={exportToCSV}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-green-700"
-              >
-                <Download size={18} /> Export CSV ({filteredTransactions.length} transactions)
-              </button>
-            </div>
-
-            {/* Date Filter for View Tab */}
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-              <div className="flex flex-wrap gap-2 mb-4">
-                <button
-                  onClick={() => handleQuickFilter('thisMonth')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${dateFilterMode === 'thisMonth'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                    }`}
-                >
-                  This Month
-                </button>
-                <button
-                  onClick={() => handleQuickFilter('thisQuarter')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${dateFilterMode === 'thisQuarter'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                    }`}
-                >
-                  This Quarter
-                </button>
-                <button
-                  onClick={() => handleQuickFilter('thisFiscalYear')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${dateFilterMode === 'thisFiscalYear'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                    }`}
-                >
-                  This Fiscal Year
-                </button>
-                <button
-                  onClick={() => handleQuickFilter('allTime')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${dateFilterMode === 'allTime'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                    }`}
-                >
-                  All Time
-                </button>
+              <div>
+                <h2 className="text-2xl font-bold">Transaction History</h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  Showing {tableFilteredTransactions.length} of {transactions.length} transaction{tableFilteredTransactions.length !== 1 ? 's' : ''}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                {hasActiveFilters() && (
+                  <button
+                    onClick={clearTableFilters}
+                    className="bg-gray-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-gray-600 text-sm"
+                  >
+                    <X size={16} /> Clear Filters
+                  </button>
+                )}
                 <button
                   onClick={() => {
-                    if (dateFilterMode !== 'custom') {
-                      // When switching to custom, preserve current range if available
-                      if (dateFilterMode !== 'allTime') {
-                        const currentRange = getDateRangeForMode(dateFilterMode);
-                        setDateRange(currentRange);
-                      }
-                    }
-                    setDateFilterMode('custom');
+                    const csv = [
+                      ['Date', 'Category', 'Subcategory', 'Sender', 'Receiver', 'Amount', 'Remarks'],
+                      ...tableFilteredTransactions.map(t => [
+                        t.date,
+                        t.category,
+                        t.subcategory,
+                        t.sender,
+                        t.receiver,
+                        t.amount,
+                        t.remarks || ''
+                      ])
+                    ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+                    const blob = new Blob([csv], { type: 'text/csv' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `madrasah_transactions_${new Date().toISOString().split('T')[0]}.csv`;
+                    a.click();
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-1 ${dateFilterMode === 'custom'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                    }`}
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-green-700"
                 >
-                  <Calendar size={14} /> Custom Range
+                  <Download size={18} /> Export CSV
                 </button>
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
-                <div>
-                  <label className="block text-sm font-semibold mb-2">Receiver Filter</label>
-                  <Select
-                    options={receiverFilterOptions}
-                    value={receiverFilterOptions.find((opt) => opt.value === receiverFilter) ?? receiverFilterOptions[0]}
-                    onChange={(option) => setReceiverFilter((option as ReceiverOption | null)?.value || '')}
-                    classNamePrefix="hk-select"
-                    className="text-sm"
-                    placeholder="All Receivers"
-                  />
-                </div>
-              </div>
-
-              {dateFilterMode === 'custom' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold mb-2">From Date</label>
-                    <div className="relative">
-                      <input
-                        type="date"
-                        value={dateRange.fromDate}
-                        onChange={(e) => setDateRange({ ...dateRange, fromDate: e.target.value })}
-                        className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm [color-scheme:light] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-3 [&::-webkit-calendar-picker-indicator]:w-4 [&::-webkit-calendar-picker-indicator]:h-4 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-                      />
-                      <Calendar className="absolute right-3 top-2.5 h-4 w-4 text-gray-400 pointer-events-none z-10" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold mb-2">To Date</label>
-                    <div className="relative">
-                      <input
-                        type="date"
-                        value={dateRange.toDate}
-                        onChange={(e) => setDateRange({ ...dateRange, toDate: e.target.value })}
-                        className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm [color-scheme:light] [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-3 [&::-webkit-calendar-picker-indicator]:w-4 [&::-webkit-calendar-picker-indicator]:h-4 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-                      />
-                      <Calendar className="absolute right-3 top-2.5 h-4 w-4 text-gray-400 pointer-events-none z-10" />
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
 
             {isLoadingData ? (
               <p className="text-gray-500 text-center py-8">Loading transactions...</p>
-            ) : filteredTransactions.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">No transactions found for the selected period</p>
+            ) : tableFilteredTransactions.length === 0 ? (
+              <p className="text-gray-500 text-center py-8">No transactions found</p>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-sm font-semibold">Date</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold">Category</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold">Subcategory</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold">Sender</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold">Receiver</th>
-                      <th className="px-4 py-2 text-right text-sm font-semibold">Amount</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold">Remarks</th>
-                      <th className="px-4 py-2 text-center text-sm font-semibold">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredTransactions.map(t => (
-                      <tr key={t.id} className="border-t hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm">{formatDisplayDate(t.date)}</td>
-                        <td className="px-4 py-3 text-sm">
-                          <span className={`px-2 py-1 rounded text-xs font-semibold ${t.category === 'Income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                            }`}>
-                            {t.category}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{t.subcategory}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700">{t.sender}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700">{t.receiver}</td>
-                        <td className="px-4 py-3 text-sm text-right font-semibold">
-                          <span className={t.category === 'Income' ? 'text-green-600' : 'text-red-600'}>
-                            {t.category === 'Income' ? '+' : '-'}{formatCurrency(Number(t.amount))}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{t.remarks}</td>
-                        <td className="px-4 py-3 text-center">
-                          <button
-                            onClick={() => handleDeleteTransaction(t.id)}
-                            disabled={isSyncing}
-                            className={`text-red-600 hover:text-red-800 font-semibold text-sm ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          >
-                            Delete
-                          </button>
-                        </td>
+              <>
+                <div className="overflow-x-auto mb-4 -mx-6 md:mx-0 px-4 md:px-0">
+                  <table className="w-full min-w-[800px] md:min-w-0">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        {/* Date Column */}
+                        <th className="px-4 py-3 text-left relative">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleTableSort('date')}
+                              className="text-sm font-semibold hover:text-indigo-600 flex items-center gap-1"
+                            >
+                              Date
+                              {tableSortColumn === 'date' ? (
+                                tableSortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                              ) : null}
+                            </button>
+                            <button
+                              onClick={(e) => handleFilterPopupToggle('date', e)}
+                              className={`filter-button ml-auto p-1.5 md:p-1 rounded hover:bg-gray-200 active:bg-gray-300 touch-manipulation ${columnHasActiveFilter('date') ? 'text-indigo-600' : 'text-gray-400'}`}
+                              title="Filter"
+                              aria-label="Filter by Date"
+                            >
+                              <Filter size={16} className="md:w-3.5 md:h-3.5" />
+                            </button>
+                          </div>
+                          {openFilterPopup === 'date' && (
+                            <div className="absolute left-0 md:left-0 right-0 md:right-auto top-full mt-1">
+                              <FilterPopup column="date" label="Date" />
+                            </div>
+                          )}
+                        </th>
+                        {/* Category Column */}
+                        <th className="px-4 py-3 text-left relative">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleTableSort('category')}
+                              className="text-sm font-semibold hover:text-indigo-600 flex items-center gap-1"
+                            >
+                              Category
+                              {tableSortColumn === 'category' ? (
+                                tableSortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                              ) : null}
+                            </button>
+                            <button
+                              onClick={(e) => handleFilterPopupToggle('category', e)}
+                              className={`filter-button ml-auto p-1.5 md:p-1 rounded hover:bg-gray-200 active:bg-gray-300 touch-manipulation ${columnHasActiveFilter('category') ? 'text-indigo-600' : 'text-gray-400'}`}
+                              title="Filter"
+                              aria-label="Filter by Category"
+                            >
+                              <Filter size={16} className="md:w-3.5 md:h-3.5" />
+                            </button>
+                          </div>
+                          {openFilterPopup === 'category' && (
+                            <div className="absolute left-0 md:left-0 right-0 md:right-auto top-full mt-1">
+                              <FilterPopup column="category" label="Category" />
+                            </div>
+                          )}
+                        </th>
+                        {/* Subcategory Column */}
+                        <th className="px-4 py-3 text-left relative">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleTableSort('subcategory')}
+                              className="text-sm font-semibold hover:text-indigo-600 flex items-center gap-1"
+                            >
+                              Subcategory
+                              {tableSortColumn === 'subcategory' ? (
+                                tableSortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                              ) : null}
+                            </button>
+                            <button
+                              onClick={(e) => handleFilterPopupToggle('subcategory', e)}
+                              className={`filter-button ml-auto p-1.5 md:p-1 rounded hover:bg-gray-200 active:bg-gray-300 touch-manipulation ${columnHasActiveFilter('subcategory') ? 'text-indigo-600' : 'text-gray-400'}`}
+                              title="Filter"
+                              aria-label="Filter by Subcategory"
+                            >
+                              <Filter size={16} className="md:w-3.5 md:h-3.5" />
+                            </button>
+                          </div>
+                          {openFilterPopup === 'subcategory' && (
+                            <div className="absolute left-0 md:left-0 right-0 md:right-auto top-full mt-1">
+                              <FilterPopup column="subcategory" label="Subcategory" />
+                            </div>
+                          )}
+                        </th>
+                        {/* Sender Column */}
+                        <th className="px-4 py-3 text-left relative">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleTableSort('sender')}
+                              className="text-sm font-semibold hover:text-indigo-600 flex items-center gap-1"
+                            >
+                              Sender
+                              {tableSortColumn === 'sender' ? (
+                                tableSortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                              ) : null}
+                            </button>
+                            <button
+                              onClick={(e) => handleFilterPopupToggle('sender', e)}
+                              className={`filter-button ml-auto p-1.5 md:p-1 rounded hover:bg-gray-200 active:bg-gray-300 touch-manipulation ${columnHasActiveFilter('sender') ? 'text-indigo-600' : 'text-gray-400'}`}
+                              title="Filter"
+                              aria-label="Filter by Sender"
+                            >
+                              <Filter size={16} className="md:w-3.5 md:h-3.5" />
+                            </button>
+                          </div>
+                          {openFilterPopup === 'sender' && (
+                            <div className="absolute left-0 md:left-0 right-0 md:right-auto top-full mt-1">
+                              <FilterPopup column="sender" label="Sender" />
+                            </div>
+                          )}
+                        </th>
+                        {/* Receiver Column */}
+                        <th className="px-4 py-3 text-left relative">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleTableSort('receiver')}
+                              className="text-sm font-semibold hover:text-indigo-600 flex items-center gap-1"
+                            >
+                              Receiver
+                              {tableSortColumn === 'receiver' ? (
+                                tableSortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                              ) : null}
+                            </button>
+                            <button
+                              onClick={(e) => handleFilterPopupToggle('receiver', e)}
+                              className={`filter-button ml-auto p-1.5 md:p-1 rounded hover:bg-gray-200 active:bg-gray-300 touch-manipulation ${columnHasActiveFilter('receiver') ? 'text-indigo-600' : 'text-gray-400'}`}
+                              title="Filter"
+                              aria-label="Filter by Receiver"
+                            >
+                              <Filter size={16} className="md:w-3.5 md:h-3.5" />
+                            </button>
+                          </div>
+                          {openFilterPopup === 'receiver' && (
+                            <div className="absolute left-0 md:left-0 right-0 md:right-auto top-full mt-1">
+                              <FilterPopup column="receiver" label="Receiver" />
+                            </div>
+                          )}
+                        </th>
+                        {/* Amount Column */}
+                        <th className="px-4 py-3 text-right relative">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => handleTableSort('amount')}
+                              className="text-sm font-semibold hover:text-indigo-600 flex items-center gap-1"
+                            >
+                              Amount
+                              {tableSortColumn === 'amount' ? (
+                                tableSortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                              ) : null}
+                            </button>
+                            <button
+                              onClick={(e) => handleFilterPopupToggle('amount', e)}
+                              className={`filter-button p-1.5 md:p-1 rounded hover:bg-gray-200 active:bg-gray-300 touch-manipulation ${columnHasActiveFilter('amount') ? 'text-indigo-600' : 'text-gray-400'}`}
+                              title="Filter"
+                              aria-label="Filter by Amount"
+                            >
+                              <Filter size={16} className="md:w-3.5 md:h-3.5" />
+                            </button>
+                          </div>
+                          {openFilterPopup === 'amount' && (
+                            <div className="absolute right-0 md:right-0 left-0 md:left-auto top-full mt-1">
+                              <FilterPopup column="amount" label="Amount" />
+                            </div>
+                          )}
+                        </th>
+                        {/* Remarks Column */}
+                        <th className="px-4 py-3 text-left relative">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold">Remarks</span>
+                            <button
+                              onClick={(e) => handleFilterPopupToggle('remarks', e)}
+                              className={`filter-button ml-auto p-1.5 md:p-1 rounded hover:bg-gray-200 active:bg-gray-300 touch-manipulation ${columnHasActiveFilter('remarks') ? 'text-indigo-600' : 'text-gray-400'}`}
+                              title="Filter"
+                              aria-label="Filter by Remarks"
+                            >
+                              <Filter size={16} className="md:w-3.5 md:h-3.5" />
+                            </button>
+                          </div>
+                          {openFilterPopup === 'remarks' && (
+                            <div className="absolute left-0 md:left-0 right-0 md:right-auto top-full mt-1">
+                              <FilterPopup column="remarks" label="Remarks" />
+                            </div>
+                          )}
+                        </th>
+                        {/* Action Column */}
+                        <th className="px-4 py-3 text-center">
+                          <span className="text-sm font-semibold">Action</span>
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {tablePaginatedTransactions.map(t => (
+                        <tr key={t.id} className="border-t hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-3 text-sm">{formatDisplayDate(t.date)}</td>
+                          <td className="px-4 py-3 text-sm">
+                            <span className={`px-2 py-1 rounded text-xs font-semibold ${t.category === 'Income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                              }`}>
+                              {t.category}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">{t.subcategory}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{t.sender}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{t.receiver}</td>
+                          <td className="px-4 py-3 text-sm text-right font-semibold">
+                            <span className={t.category === 'Income' ? 'text-green-600' : 'text-red-600'}>
+                              {t.category === 'Income' ? '+' : '-'}{formatCurrency(Number(t.amount))}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">{t.remarks || '-'}</td>
+                          <td className="px-4 py-3 text-center">
+                            <button
+                              onClick={() => handleDeleteTransaction(t.id)}
+                              disabled={isSyncing}
+                              className={`text-red-600 hover:text-red-800 font-semibold text-sm transition-colors ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination */}
+                {tableTotalPages > 1 && (
+                  <div className="flex items-center justify-between border-t pt-4">
+                    <div className="text-sm text-gray-600">
+                      Page {tableCurrentPage} of {tableTotalPages} ({tableFilteredTransactions.length} transactions)
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setTableCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={tableCurrentPage === 1}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${tableCurrentPage === 1
+                            ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                            : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                          }`}
+                      >
+                        Previous
+                      </button>
+                      <button
+                        onClick={() => setTableCurrentPage(prev => Math.min(tableTotalPages, prev + 1))}
+                        disabled={tableCurrentPage === tableTotalPages}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${tableCurrentPage === tableTotalPages
+                            ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                            : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                          }`}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -1229,6 +1789,31 @@ export default function AccountingSystem() {
                 >
                   <Calendar size={14} /> Custom Range
                 </button>
+              </div>
+
+              {/* Receiver Filter Buttons */}
+              <div className="flex flex-wrap gap-2 mb-4">
+                <button
+                  onClick={() => setReceiverFilter('')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${receiverFilter === ''
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                    }`}
+                >
+                  All Receivers
+                </button>
+                {receiverOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => setReceiverFilter(option.value)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${receiverFilter === option.value
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                      }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
               </div>
 
               {/* Custom Date Range Inputs */}
