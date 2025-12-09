@@ -1564,60 +1564,6 @@ export default function AccountingSystem() {
             ) : tableFilteredTransactions.length === 0 ? (
               <p className="text-gray-500 text-center py-8">No transactions found</p>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-sm font-semibold">Date</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold">Category</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold">Subcategory</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold">Sender</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold">Receiver</th>
-                      <th className="px-4 py-2 text-right text-sm font-semibold">Amount</th>
-                      <th className="px-4 py-2 text-left text-sm font-semibold">Remarks</th>
-                      <th className="px-4 py-2 text-center text-sm font-semibold">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredTransactions.map(t => (
-                      <tr key={t.id} className="border-t hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm">{formatDisplayDate(t.date)}</td>
-                        <td className="px-4 py-3 text-sm">
-                          <span className={`px-2 py-1 rounded text-xs font-semibold ${t.category === 'Income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                            }`}>
-                            {t.category}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{t.subcategory}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700">{t.sender}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700">{t.receiver}</td>
-                        <td className="px-4 py-3 text-sm text-right font-semibold">
-                          <span className={t.category === 'Income' ? 'text-green-600' : 'text-red-600'}>
-                            {t.category === 'Income' ? '+' : '-'}{formatCurrency(Number(t.amount))}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{t.remarks}</td>
-                        <td className="px-4 py-3 text-center">
-                          <div className="flex items-center justify-center gap-3">
-                            <button
-                              onClick={() => handleEditTransaction(t)}
-                              disabled={isSyncing}
-                              className={`text-indigo-600 hover:text-indigo-800 font-semibold text-sm flex items-center gap-1 ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                              title="Edit transaction"
-                            >
-                              <Edit size={16} />
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleDeleteTransaction(t.id)}
-                              disabled={isSyncing}
-                              className={`text-red-600 hover:text-red-800 font-semibold text-sm ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                              title="Delete transaction"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </td>
               <>
                 <div className="overflow-x-auto mb-4 -mx-6 md:mx-0 px-4 md:px-0">
                   <table className="w-full min-w-[800px] md:min-w-0">
