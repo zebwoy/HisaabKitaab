@@ -95,7 +95,7 @@ const handler: Handler = async (event) => {
       }
 
       const payload = JSON.parse(event.body);
-      const requiredFields = ['date', 'category', 'subcategory', 'sender', 'receiver', 'amount'];
+      const requiredFields = ['date', 'category', 'subcategory', 'sender', 'receiver', 'amount', 'remarks'];
       for (const field of requiredFields) {
         if (!payload[field]) {
           return {
@@ -104,10 +104,6 @@ const handler: Handler = async (event) => {
             body: JSON.stringify({ error: `${field} is required.` }),
           };
         }
-      }
-      // Remarks is optional, default to empty string if not provided
-      if (!payload.remarks) {
-        payload.remarks = '';
       }
 
       const result = await runQuery(

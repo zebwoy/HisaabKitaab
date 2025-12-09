@@ -89,7 +89,6 @@ export default function AccountingSystem() {
   const successTimer = useRef<number | null>(null);
   const [playSoundOnSuccess, setPlaySoundOnSuccess] = useState(true);
 
-
   // Date range filter state
   const [dateRange, setDateRange] = useState({
     fromDate: '',
@@ -137,6 +136,7 @@ export default function AccountingSystem() {
 
   const incomeSubcategories = ['Donations', 'Student Fees', 'Grants', 'Other Income'];
   const expenseSubcategories = ['Salaries', 'Utilities', 'Books & Materials', 'Infrastructure', 'Other Expenses'];
+  const remarkLabels = ['Deposit', 'Rent', 'Legality', 'Bathroom', 'Classroom', 'Library', 'Painting', 'Fabrication', 'Cleaning', 'Plumbing'];
 
   const categoryOptions: CategoryOption[] = [
     { value: 'Income', label: 'Income' },
@@ -324,6 +324,19 @@ export default function AccountingSystem() {
     setFormData({ ...formData, receiver: value });
   };
 
+  const handleLabelClick = (label: string) => {
+    const currentRemarks = formData.remarks.trim();
+    // Check if label already exists as a whole word in remarks (case-insensitive)
+    const labelRegex = new RegExp(`\\b${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    if (labelRegex.test(currentRemarks)) {
+      // Label already exists, don't add duplicate
+      return;
+    }
+    // Add label with preceding space
+    const newRemarks = currentRemarks ? `${currentRemarks} ${label}` : label;
+    setFormData({ ...formData, remarks: newRemarks });
+  };
+
   // ---- AUTH & VALIDATION ----
 
   const validateTransactionForm = () => {
@@ -344,7 +357,9 @@ export default function AccountingSystem() {
     if (!formData.receiver.trim()) {
       errors.receiver = 'Receiver is required';
     }
-    if (formData.remarks.trim() && formData.remarks.trim().length < 3) {
+    if (!formData.remarks.trim()) {
+      errors.remarks = 'Remarks is required';
+    } else if (formData.remarks.trim().length < 3) {
       errors.remarks = 'Remarks should be at least 3 characters';
     }
 
@@ -1453,9 +1468,36 @@ export default function AccountingSystem() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold mb-2">Remarks (optional)</label>
+                <label className="block text-sm font-semibold mb-2">Remarks *</label>
+                
+                {/* Label Buttons */}
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {remarkLabels.map((label) => {
+                    // Check if label exists as a whole word (case-insensitive)
+                    const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const labelRegex = new RegExp(`\\b${escapedLabel}\\b`, 'i');
+                    const isLabelInRemarks = labelRegex.test(formData.remarks);
+                    return (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() => handleLabelClick(label)}
+                        disabled={isLabelInRemarks}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                          isLabelInRemarks
+                            ? 'bg-gray-200 text-gray-400 cursor-not-allowed line-through'
+                            : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200 hover:scale-105 active:scale-95 shadow-sm'
+                        }`}
+                        title={isLabelInRemarks ? 'Label already added' : `Add ${label}`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+
                 <textarea
-                  placeholder="Brief context about this transaction"
+                  placeholder="Type your remarks or click labels above to add them"
                   value={formData.remarks}
                   onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
                   rows={3}
@@ -1506,7 +1548,7 @@ export default function AccountingSystem() {
                 disabled={isSyncing}
                 className={`w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700 ${isSyncing ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
-                {isSyncing ? 'Saving...' : 'Add Transaction'}
+                {isSyncing ? 'Saving...' : editingTransactionId ? 'Update Transaction' : 'Add Transaction'}
               </button>
             </div>
           </div>
