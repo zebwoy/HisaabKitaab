@@ -1542,14 +1542,6 @@ export default function AccountingSystem() {
                   Play sound on successful entry
                 </label>
               </div>
-              
-              <button
-                onClick={handleAddTransaction}
-                disabled={isSyncing}
-                className={`w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700 ${isSyncing ? 'opacity-70 cursor-not-allowed' : ''}`}
-              >
-                {isSyncing ? 'Saving...' : editingTransactionId ? 'Update Transaction' : 'Add Transaction'}
-              </button>
             </div>
           </div>
         )}
