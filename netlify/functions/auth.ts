@@ -29,7 +29,18 @@ export const handler: Handler = async (event) => {
   try {
     const body = event.body ? JSON.parse(event.body) : {};
     const password: string | undefined = body.password;
+    const userType: string | undefined = body.userType || 'admin';
 
+    // For trial mode, allow login without password check
+    if (userType === 'trial') {
+      return {
+        statusCode: 200,
+        headers: corsHeaders,
+        body: JSON.stringify({ ok: true, userType: 'trial' }),
+      };
+    }
+
+    // For admin mode, require password
     if (!password) {
       return {
         statusCode: 400,
@@ -61,7 +72,7 @@ export const handler: Handler = async (event) => {
     return {
       statusCode: 200,
       headers: corsHeaders,
-      body: JSON.stringify({ ok: true }),
+      body: JSON.stringify({ ok: true, userType: 'admin' }),
     };
   } catch (error) {
     return {

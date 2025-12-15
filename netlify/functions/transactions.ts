@@ -40,6 +40,29 @@ const handler: Handler = async (event) => {
       };
     }
 
+    // Get userType from query parameter or default to 'admin'
+    const userType = event.queryStringParameters?.userType || 'admin';
+    const tableName = userType === 'trial' ? 'trial_transactions' : 'transactions';
+
+    // Ensure trial_transactions table exists (seeding is done manually via SQL)
+    if (userType === 'trial') {
+      await runQuery(`
+        CREATE TABLE IF NOT EXISTS trial_transactions (
+          id SERIAL PRIMARY KEY,
+          date DATE NOT NULL,
+          category VARCHAR(20) NOT NULL CHECK (category IN ('Income', 'Expense')),
+          subcategory VARCHAR(100) NOT NULL,
+          sender VARCHAR(255) NOT NULL,
+          receiver VARCHAR(255) NOT NULL,
+          remarks TEXT,
+          amount DECIMAL(15, 2) NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          ModifiedDate TIMESTAMP,
+          IsDeleted CHAR(1) DEFAULT 'N'
+        );
+      `);
+    }
+
     if (event.httpMethod === 'GET') {
       const { fromDate, toDate } = event.queryStringParameters ?? {};
       const filters: string[] = [];
@@ -72,7 +95,7 @@ const handler: Handler = async (event) => {
         modifieddate: string;
       }>(
         `SELECT id, date, category, subcategory, sender, receiver, remarks, amount, created_at, ModifiedDate as modifieddate
-         FROM transactions
+         FROM ${tableName}
          ${whereClause}
          ORDER BY date DESC, created_at DESC`,
         params
@@ -107,7 +130,7 @@ const handler: Handler = async (event) => {
       }
 
       const result = await runQuery(
-        `INSERT INTO transactions (date, category, subcategory, sender, receiver, remarks, amount, IsDeleted)
+        `INSERT INTO ${tableName} (date, category, subcategory, sender, receiver, remarks, amount, IsDeleted)
          VALUES ($1, $2, $3, $4, $5, $6, $7, 'N')
          RETURNING id, date, category, subcategory, sender, receiver, remarks, amount, created_at`,
         [
@@ -187,7 +210,7 @@ const handler: Handler = async (event) => {
 
         // Mark old transaction as deleted (soft delete)
         await client.query(
-          `UPDATE transactions 
+          `UPDATE ${tableName} 
            SET IsDeleted = 'Y' 
            WHERE id = $1 AND (IsDeleted IS NULL OR IsDeleted != 'Y')`,
           [Number(id)]
@@ -195,7 +218,7 @@ const handler: Handler = async (event) => {
 
         // Insert new transaction with ModifiedDate from client machine
         const insertResult = await client.query(
-          `INSERT INTO transactions (date, category, subcategory, sender, receiver, remarks, amount, ModifiedDate)
+          `INSERT INTO ${tableName} (date, category, subcategory, sender, receiver, remarks, amount, ModifiedDate)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8::timestamp)
            RETURNING id, date, category, subcategory, sender, receiver, remarks, amount, created_at, ModifiedDate as modifieddate`,
           [
@@ -238,7 +261,7 @@ const handler: Handler = async (event) => {
 
       // Soft delete: Mark transaction as deleted instead of actually deleting it
       await runQuery(
-        `UPDATE transactions SET IsDeleted = 'Y' WHERE id = $1 AND (IsDeleted IS NULL OR IsDeleted != 'Y')`,
+        `UPDATE ${tableName} SET IsDeleted = 'Y' WHERE id = $1 AND (IsDeleted IS NULL OR IsDeleted != 'Y')`,
         [Number(id)]
       );
       return {
