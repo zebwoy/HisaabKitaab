@@ -70,6 +70,24 @@ interface ReceiverOption {
   label: string;
 }
 
+interface SenderOption {
+  value: string;
+  label: string;
+}
+
+interface Entity {
+  id: number;
+  entity_name: string;
+  entity_type: 'sender' | 'receiver' | 'both';
+  IsDeleted: string;
+  ModifiedDate: string | null;
+  IsTrial: string;
+  created_at: string;
+}
+
+interface UserTypeOption {
+  value: 'admin' | 'trial';
+  label: string;
 type ColorPalette = 'indigo' | 'blue' | 'purple' | 'emerald' | 'rose';
 type ThemeMode = 'light' | 'dark';
 
@@ -83,6 +101,14 @@ export default function AccountingSystem() {
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     return sessionStorage.getItem('madrasah_logged_in') === 'true';
   });
+  const [userType, setUserType] = useState<'admin' | 'trial'>(() => {
+    return (sessionStorage.getItem('madrasah_user_type') as 'admin' | 'trial') || 'trial';
+  });
+  const [displayTitle, setDisplayTitle] = useState<string>(() => {
+    const savedUserType = (sessionStorage.getItem('madrasah_user_type') as 'admin' | 'trial') || 'trial';
+    return savedUserType === 'trial' ? 'Trial account for Demo Purpose' : 'Madrasah-e-Millat Bhiwandi';
+  });
+  const [isTitleAnimating, setIsTitleAnimating] = useState(false);
   const [loginPassword, setLoginPassword] = useState('');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -99,6 +125,14 @@ export default function AccountingSystem() {
   const [showSuccessAck, setShowSuccessAck] = useState(false);
   const successTimer = useRef<number | null>(null);
   const [playSoundOnSuccess, setPlaySoundOnSuccess] = useState(true);
+  const [senderOptions, setSenderOptions] = useState<SenderOption[]>([]);
+  const [receiverOptions, setReceiverOptions] = useState<ReceiverOption[]>([]);
+  const [isLoadingEntities, setIsLoadingEntities] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(() => {
+    // Initialize as true if user is already logged in (prevents showing old data on refresh)
+    return sessionStorage.getItem('madrasah_logged_in') === 'true';
+  });
+
   
   // Saved senders state (loaded from server)
   const [savedSenders, setSavedSenders] = useState<string[]>([]);
@@ -109,7 +143,7 @@ export default function AccountingSystem() {
     fromDate: '',
     toDate: ''
   });
-  const [dateFilterMode, setDateFilterMode] = useState<'thisMonth' | 'thisQuarter' | 'thisFiscalYear' | 'allTime' | 'custom'>('thisMonth'); // 'custom', 'thisMonth', 'thisQuarter', 'thisFiscalYear', 'allTime'
+  const [dateFilterMode, setDateFilterMode] = useState<'thisMonth' | 'thisQuarter' | 'thisFiscalYear' | 'allTime' | 'custom'>('allTime'); // 'custom', 'thisMonth', 'thisQuarter', 'thisFiscalYear', 'allTime'
 
   // Enhanced table state for View Transactions tab
   interface ColumnFilter {
@@ -216,17 +250,40 @@ export default function AccountingSystem() {
     return list.map((sub) => ({ value: sub, label: sub }));
   };
   const subcategoryOptions = getSubcategoryOptions();
-  const receiverOptions: ReceiverOption[] = [
-    { value: 'AbdurRauf', label: 'AbdurRauf' },
-    { value: 'Rahib', label: 'Rahib' },
-    { value: 'Ayman', label: 'Ayman' },
+
+  const userTypeOptions: UserTypeOption[] = [
+    { value: 'admin', label: 'Admin' },
+    { value: 'trial', label: 'Trial' },
   ];
+
+  // Handle user type change with animated title transition (countdown timer-like effect)
+  const handleUserTypeChange = (option: SingleValue<UserTypeOption>) => {
+    const newUserType = option?.value ?? 'admin';
+    if (newUserType !== userType) {
+      setIsTitleAnimating(true);
+      // Countdown-like animation: fade out, change text, fade in
+      setTimeout(() => {
+        const newTitle = newUserType === 'trial' 
+          ? 'Trial account for Demo Purpose' 
+          : 'Madrasah-e-Millat Bhiwandi';
+        setDisplayTitle(newTitle);
+        setUserType(newUserType);
+        // Fade in new title with smooth transition
+        setTimeout(() => {
+          setIsTitleAnimating(false);
+        }, 200);
+      }, 200);
+    } else {
+      setUserType(newUserType);
+    }
+  };
 
   const fetchTransactions = useCallback(async () => {
     setIsLoadingData(true);
     setDataError('');
     try {
-      const response = await fetch('/.netlify/functions/transactions');
+      const currentUserType = sessionStorage.getItem('madrasah_user_type') || 'admin';
+      const response = await fetch(`/.netlify/functions/transactions?userType=${currentUserType}`);
       if (!response.ok) {
         throw new Error('Unable to load transactions from the server.');
       }
@@ -239,9 +296,48 @@ export default function AccountingSystem() {
     }
   }, []);
 
+  const fetchEntities = useCallback(async () => {
+    setIsLoadingEntities(true);
+    try {
+      const currentUserType = sessionStorage.getItem('madrasah_user_type') || 'admin';
+      
+      // Fetch senders and receivers in parallel for better performance
+      const [sendersResponse, receiversResponse] = await Promise.all([
+        fetch(`/.netlify/functions/entities?userType=${currentUserType}&entityType=sender`),
+        fetch(`/.netlify/functions/entities?userType=${currentUserType}&entityType=receiver`)
+      ]);
+
+      if (sendersResponse.ok) {
+        const senders: Entity[] = await sendersResponse.json();
+        setSenderOptions(senders.map(e => ({ value: e.entity_name, label: e.entity_name })));
+      }
+
+      if (receiversResponse.ok) {
+        const receivers: Entity[] = await receiversResponse.json();
+        setReceiverOptions(receivers.map(e => ({ value: e.entity_name, label: e.entity_name })));
+      }
+    } catch (error) {
+      console.error('Error fetching entities:', error);
+      // Set empty arrays on error to avoid breaking the UI
+      setSenderOptions([]);
+      setReceiverOptions([]);
+    } finally {
+      setIsLoadingEntities(false);
+    }
+  }, []);
+
   useEffect(() => {
+    const savedUserType = sessionStorage.getItem('madrasah_user_type') as 'admin' | 'trial' | null;
     if (sessionStorage.getItem('madrasah_logged_in') === 'true') {
       setIsLoggedIn(true);
+      if (savedUserType) {
+        setUserType(savedUserType);
+        // Update displayTitle based on saved userType
+        const title = savedUserType === 'trial' 
+          ? 'Trial account for Demo Purpose' 
+          : 'Madrasah-e-Millat Bhiwandi';
+        setDisplayTitle(title);
+      }
     }
 
     const today = new Date();
@@ -253,6 +349,7 @@ export default function AccountingSystem() {
     });
   }, []);
 
+  // Fetch entities and transactions when logged in or userType changes
   // Fetch saved senders from server
   const fetchSavedSenders = useCallback(async () => {
     try {
@@ -280,8 +377,23 @@ export default function AccountingSystem() {
   }, [isLoggedIn, fetchSavedSenders]);
 
   useEffect(() => {
-    fetchTransactions();
-  }, [fetchTransactions]);
+    if (isLoggedIn) {
+      // Clear old data when userType changes to prevent showing wrong data
+      setTransactions([]);
+      setSenderOptions([]);
+      setReceiverOptions([]);
+      setIsInitializing(true);
+      
+      // Fetch new data for the current user type
+      Promise.all([fetchTransactions(), fetchEntities()]).finally(() => {
+        setIsInitializing(false);
+      });
+    } else {
+      // Clear entities when logged out
+      setSenderOptions([]);
+      setReceiverOptions([]);
+    }
+  }, [isLoggedIn, userType, fetchTransactions, fetchEntities]);
 
   // Helper function to get date range based on filter mode
   const getDateRangeForMode = (mode: 'thisMonth' | 'thisQuarter' | 'thisFiscalYear' | 'allTime' | 'custom') => {
@@ -413,6 +525,11 @@ export default function AccountingSystem() {
     setFormData({ ...formData, subcategory: value });
   };
 
+  const handleSenderSelect = (option: SingleValue<SenderOption>) => {
+    const value = option?.value ?? '';
+    setFormData({ ...formData, sender: value });
+  };
+
   const handleReceiverSelect = (option: SingleValue<ReceiverOption>) => {
     const value = option?.value ?? '';
     setFormData({ ...formData, receiver: value });
@@ -510,7 +627,8 @@ export default function AccountingSystem() {
   };
 
   const handleLogin = async () => {
-    if (!loginPassword.trim()) {
+    // For admin mode, require password
+    if (userType === 'admin' && !loginPassword.trim()) {
       setAuthError('Enter the password');
       return;
     }
@@ -522,10 +640,36 @@ export default function AccountingSystem() {
       const response = await fetch('/.netlify/functions/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: loginPassword }),
+        body: JSON.stringify({ password: loginPassword, userType: userType }),
       });
 
       if (response.ok) {
+        // Clear old data immediately to prevent showing previous user's data
+        setTransactions([]);
+        setSenderOptions([]);
+        setReceiverOptions([]);
+        setDataError('');
+        
+        setIsLoggedIn(true);
+        setLoginPassword('');
+        sessionStorage.setItem('madrasah_logged_in', 'true');
+        sessionStorage.setItem('madrasah_user_type', userType);
+        // Update displayTitle based on userType
+        const title = userType === 'trial' 
+          ? 'Trial account for Demo Purpose' 
+          : 'Madrasah-e-Millat Bhiwandi';
+        setDisplayTitle(title);
+        
+        // Show loader while fetching new data
+        setIsInitializing(true);
+        
+        // Fetch transactions and entities after login
+        try {
+          await Promise.all([fetchTransactions(), fetchEntities()]);
+        } finally {
+          setIsInitializing(false);
+        }
+      } else {
       setIsLoggedIn(true);
       setLoginPassword('');
         sessionStorage.setItem('madrasah_logged_in', 'true');
@@ -543,8 +687,9 @@ export default function AccountingSystem() {
   const handleLogout = () => {
     setIsLoggedIn(false);
     setLoginPassword('');
-    // Clear session on logout
+    // Clear session on logout but maintain userType
     sessionStorage.removeItem('madrasah_logged_in');
+    // Keep madrasah_user_type in sessionStorage to maintain userType selection
   };
 
 
@@ -597,7 +742,8 @@ export default function AccountingSystem() {
     };
 
     try {
-      const response = await fetch('/.netlify/functions/transactions', {
+      const currentUserType = sessionStorage.getItem('madrasah_user_type') || 'admin';
+      const response = await fetch(`/.netlify/functions/transactions?userType=${currentUserType}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -655,7 +801,8 @@ export default function AccountingSystem() {
     setIsSyncing(true);
     setDataError('');
     try {
-      const response = await fetch(`/.netlify/functions/transactions?id=${id}`, {
+      const currentUserType = sessionStorage.getItem('madrasah_user_type') || 'admin';
+      const response = await fetch(`/.netlify/functions/transactions?id=${id}&userType=${currentUserType}`, {
         method: 'DELETE',
       });
 
@@ -723,7 +870,8 @@ export default function AccountingSystem() {
     };
 
     try {
-      const response = await fetch('/.netlify/functions/transactions', {
+      const currentUserType = sessionStorage.getItem('madrasah_user_type') || 'admin';
+      const response = await fetch(`/.netlify/functions/transactions?userType=${currentUserType}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -996,6 +1144,15 @@ export default function AccountingSystem() {
 
   // Get unique values for a column (for multi-select filters)
   const getUniqueColumnValues = (column: keyof Transaction): string[] => {
+    // For sender and receiver columns, use fetched entities instead of transaction data
+    if (column === 'sender') {
+      return senderOptions.map(opt => opt.value).sort();
+    }
+    if (column === 'receiver') {
+      return receiverOptions.map(opt => opt.value).sort();
+    }
+    
+    // For other columns, extract unique values from transactions
     const values = new Set<string>();
     transactions.forEach(t => {
       const value = String(t[column] || '').trim();
@@ -1309,7 +1466,9 @@ export default function AccountingSystem() {
         <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 bg-white/5 backdrop-blur-lg border border-white/10 rounded-3xl shadow-2xl overflow-hidden">
           <div className="hidden md:flex flex-col justify-between bg-gradient-to-br from-indigo-500 via-purple-500 to-blue-600 text-white p-10">
             <div>
-              <p className="text-sm font-medium text-white/80">Madrasah-e-Millat Bhiwandi</p>
+              <p className={`text-sm font-medium text-white/80 transition-all duration-200 ease-in-out ${isTitleAnimating ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
+                {displayTitle}
+              </p>
               <h1 className="text-3xl font-bold mt-2 leading-tight">Accounting & Reporting</h1>
               <p className="mt-4 text-white/80 text-sm leading-relaxed">
                 Secure access to your finance workspace. All data stays protected;
@@ -1336,23 +1495,54 @@ export default function AccountingSystem() {
               }}
               className="space-y-4"
             >
-              <div className="relative">
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Password</label>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter password"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 bg-white"
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">User</label>
+                <Select<UserTypeOption>
+                  options={userTypeOptions}
+                  value={userTypeOptions.find((opt) => opt.value === userType)}
+                  onChange={handleUserTypeChange}
+                  classNamePrefix="hk-select"
+                  className="text-sm"
+                  styles={{
+                    control: (base) => ({
+                      ...base,
+                      borderRadius: 12,
+                      borderColor: '#cbd5e1',
+                      minHeight: '44px',
+                      boxShadow: 'none',
+                      '&:hover': {
+                        borderColor: '#cbd5e1',
+                      },
+                    }),
+                    placeholder: (base) => ({
+                      ...base,
+                      color: '#64748b',
+                    }),
+                  }}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-9 text-slate-400 hover:text-slate-600"
-                >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
+                {userType === 'trial' && (
+                  <p className="mt-1 text-xs text-slate-500">Trial mode shows sample data. No password required.</p>
+                )}
               </div>
+              {userType === 'admin' && (
+                <div className="relative">
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Password</label>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Enter password"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 bg-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-9 text-slate-400 hover:text-slate-600"
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+              )}
 
               {authError && (
                 <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 px-3 py-2 text-sm">
@@ -1369,11 +1559,33 @@ export default function AccountingSystem() {
                 {isAuthenticating ? 'Signing in...' : 'Sign in'}
               </button>
 
-              <p className="text-xs text-slate-500 text-center">
-                Password is verified securely on the server and never stored in the browser.
-              </p>
+              {userType === 'admin' && (
+                <p className="text-xs text-slate-500 text-center">
+                  Password is verified securely on the server and never stored in the browser.
+                </p>
+              )}
             </form>
             </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loader while initializing after login or userType change
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-blue-600 flex items-center justify-center">
+        <div className="text-center">
+          <div className="relative inline-block mb-6">
+            <div className="h-20 w-20 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="h-12 w-12 bg-white/20 rounded-full flex items-center justify-center">
+                <span className="text-2xl font-bold text-white">₹</span>
+              </div>
+            </div>
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-2">Loading your data</h2>
+          <p className="text-white/80 text-sm">Please wait while we fetch your transactions...</p>
         </div>
       </div>
     );
@@ -1397,6 +1609,22 @@ export default function AccountingSystem() {
         </div>
       )}
 
+       {/* Header */}
+       <div className="bg-indigo-600 text-white shadow-lg">
+         <div className="max-w-6xl mx-auto px-4 py-4 md:py-6 flex flex-col md:flex-row md:justify-between md:items-center gap-3">
+           <div>
+             <div className="flex items-center gap-3">
+               <h1 className="text-2xl md:text-3xl font-bold">{displayTitle}</h1>
+               {userType === 'trial' && (
+                 <span className="px-3 py-1 bg-amber-500 text-white text-xs font-bold rounded-full animate-pulse">
+                   TRIAL MODE
+                 </span>
+               )}
+             </div>
+             <p className="text-xs md:text-sm text-indigo-100">
+               Accounts | Reporting | Reconciliation
+             </p>
+           </div>
       {/* Header */}
       <div className={`${
         theme.mode === 'dark' 
