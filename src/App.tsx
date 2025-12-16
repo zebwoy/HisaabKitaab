@@ -2042,7 +2042,7 @@ export default function AccountingSystem() {
             </div>
 
             {/* Date Filter for View Tab */}
-            <div className="mb-6 p-4 bg-gray-50 dark:bg-black dark:border dark:border-gray-900 border border-gray-200 rounded-lg shadow-lg dark:shadow-[0_10px_25px_rgba(0,0,0,0.7)]">
+            {/* <div className="mb-6 p-4 bg-gray-50 dark:bg-black dark:border dark:border-gray-900 border border-gray-200 rounded-lg shadow-lg dark:shadow-[0_10px_25px_rgba(0,0,0,0.7)]">
               <div className="flex flex-wrap gap-2 mb-4">
                 <button
                   onClick={() => handleQuickFilter('thisMonth')}
@@ -2134,7 +2134,7 @@ export default function AccountingSystem() {
                   <Download size={18} /> Export CSV
                 </button>
               </div>
-            </div>
+            </div> */}
 
             {isLoadingData ? (
               <p className="text-gray-500 text-center py-8">Loading transactions...</p>
@@ -2331,54 +2331,94 @@ export default function AccountingSystem() {
                         <th className="px-4 py-3 text-center">
                           <span className="text-sm font-semibold text-gray-900 dark:text-white">Action</span>
                         </th>
-                    classNamePrefix="hk-select"
-                    className="text-sm"
-                    placeholder="All Receivers"
-                    styles={{
-                      control: (base) => ({
-                        ...base,
-                        borderRadius: 8,
-                        borderColor: theme.mode === 'dark' ? '#1f2937' : '#d1d5db',
-                        minHeight: '36px',
-                        backgroundColor: theme.mode === 'dark' ? '#000000' : '#ffffff',
-                      }),
-                      menu: (base) => ({
-                        ...base,
-                        backgroundColor: theme.mode === 'dark' ? '#000000' : '#ffffff',
-                        borderColor: theme.mode === 'dark' ? '#1f2937' : '#d1d5db',
-                      }),
-                      option: (base, state) => ({
-                        ...base,
-                        backgroundColor: state.isSelected
-                          ? (theme.mode === 'dark' 
-                              ? '#1f2937' 
-                              : (theme.palette === 'indigo' ? '#4f46e5' :
-                                 theme.palette === 'blue' ? '#2563eb' :
-                                 theme.palette === 'purple' ? '#9333ea' :
-                                 theme.palette === 'emerald' ? '#059669' :
-                                 '#e11d48'))
-                          : state.isFocused
-                          ? (theme.mode === 'dark' ? '#1f2937' : '#f3f4f6')
-                          : 'transparent',
-                        color: theme.mode === 'dark' ? '#f3f4f6' : '#111827',
-                      }),
-                      singleValue: (base) => ({
-                        ...base,
-                        color: theme.mode === 'dark' ? '#f3f4f6' : '#111827',
-                      }),
-                      input: (base) => ({
-                        ...base,
-                        color: theme.mode === 'dark' ? '#f3f4f6' : '#111827',
-                      }),
-                      placeholder: (base) => ({
-                        ...base,
-                        color: theme.mode === 'dark' ? '#9ca3af' : '#6b7280',
-                      }),
-                    }}
-                  />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tablePaginatedTransactions.map(t => (
+                        <tr key={t.id} className="border-t hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors">
+                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{formatDisplayDate(t.date)}</td>
+                          <td className="px-4 py-3 text-sm">
+                            <span className={`px-2 py-1 rounded text-xs font-semibold ${t.category === 'Income' ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400'
+                              }`}>
+                              {t.category}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{t.subcategory}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{t.sender}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">{t.receiver}</td>
+                          <td className="px-4 py-3 text-sm text-right font-semibold">
+                            <span className={t.category === 'Income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+                              {t.category === 'Income' ? '+' : '-'}{formatCurrency(Number(t.amount))}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{t.remarks || '-'}</td>
+                          <td className="px-4 py-3 text-center">
+                            <div className="flex items-center justify-center gap-3">
+                              <button
+                                onClick={() => handleEditTransaction(t)}
+                                disabled={isSyncing}
+                                className={`text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-semibold text-sm flex items-center gap-1 transition-colors ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                title="Edit transaction"
+                              >
+                                <Edit size={16} />
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTransaction(t.id)}
+                                disabled={isSyncing}
+                                className={`text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 font-semibold text-sm transition-colors ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                title="Delete transaction"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              </div>
-              
+
+                {/* Pagination */}
+                {tableTotalPages > 1 && (
+                  <div className="flex items-center justify-between border-t pt-4">
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      Page {tableCurrentPage} of {tableTotalPages} ({tableFilteredTransactions.length} transactions)
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setTableCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={tableCurrentPage === 1}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${tableCurrentPage === 1
+                            ? 'bg-gray-200 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                            : 'bg-indigo-600 dark:bg-indigo-700 text-white hover:bg-indigo-700 dark:hover:bg-indigo-600'
+                          }`}
+                      >
+                        Previous
+                      </button>
+                      <button
+                        onClick={() => setTableCurrentPage(prev => Math.min(tableTotalPages, prev + 1))}
+                        disabled={tableCurrentPage === tableTotalPages}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${tableCurrentPage === tableTotalPages
+                            ? 'bg-gray-200 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                            : 'bg-indigo-600 dark:bg-indigo-700 text-white hover:bg-indigo-700 dark:hover:bg-indigo-600'
+                          }`}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Financial Reports Tab
+        {activeTab === 'report' && (
+          <div className="bg-white dark:bg-black dark:border dark:border-gray-900 border border-gray-200 rounded-lg shadow-2xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] p-6">
+            {/* Date Filter for Financial Reports */}
+            {/* <div className="mb-6 p-4 bg-gray-50 dark:bg-black dark:border dark:border-gray-900 border border-gray-200 rounded-lg shadow-lg dark:shadow-[0_10px_25px_rgba(0,0,0,0.7)]">
               {dateFilterMode === 'custom' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -2475,87 +2515,12 @@ export default function AccountingSystem() {
                           </button>
                         </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {tablePaginatedTransactions.map(t => (
-                        <tr key={t.id} className="border-t hover:bg-gray-50 transition-colors">
-                          <td className="px-4 py-3 text-sm">{formatDisplayDate(t.date)}</td>
-                          <td className="px-4 py-3 text-sm">
-                            <span className={`px-2 py-1 rounded text-xs font-semibold ${t.category === 'Income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                              }`}>
-                              {t.category}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">{t.subcategory}</td>
-                          <td className="px-4 py-3 text-sm text-gray-700">{t.sender}</td>
-                          <td className="px-4 py-3 text-sm text-gray-700">{t.receiver}</td>
-                          <td className="px-4 py-3 text-sm text-right font-semibold">
-                            <span className={t.category === 'Income' ? 'text-green-600' : 'text-red-600'}>
-                              {t.category === 'Income' ? '+' : '-'}{formatCurrency(Number(t.amount))}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">{t.remarks || '-'}</td>
-                          <td className="px-4 py-3 text-center">
-                            <div className="flex items-center justify-center gap-3">
-                              <button
-                                onClick={() => handleEditTransaction(t)}
-                                disabled={isSyncing}
-                                className={`text-indigo-600 hover:text-indigo-800 font-semibold text-sm flex items-center gap-1 transition-colors ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                title="Edit transaction"
-                              >
-                                <Edit size={16} />
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => handleDeleteTransaction(t.id)}
-                                disabled={isSyncing}
-                                className={`text-red-600 hover:text-red-800 font-semibold text-sm transition-colors ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                title="Delete transaction"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Pagination */}
-                {tableTotalPages > 1 && (
-                  <div className="flex items-center justify-between border-t pt-4">
-                    <div className="text-sm text-gray-600">
-                      Page {tableCurrentPage} of {tableTotalPages} ({tableFilteredTransactions.length} transactions)
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setTableCurrentPage(prev => Math.max(1, prev - 1))}
-                        disabled={tableCurrentPage === 1}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${tableCurrentPage === 1
-                            ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                            : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                          }`}
-                      >
-                        Previous
-                      </button>
-                      <button
-                        onClick={() => setTableCurrentPage(prev => Math.min(tableTotalPages, prev + 1))}
-                        disabled={tableCurrentPage === tableTotalPages}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${tableCurrentPage === tableTotalPages
-                            ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                            : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                          }`}
-                      >
-                        Next
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
-          </div>
-        )}
+          </div> */}
 
         {/* Monthly Report Tab */}
         {activeTab === 'report' && (
