@@ -200,7 +200,6 @@ export default function AccountingSystem() {
     return paletteMap[theme.palette] + ' text-white';
   };
 
->>>>>>> feature/dark-mode-themes
   // ---- MASTER DATA ----
 
   const incomeSubcategories = ['Donations', 'Student Fees', 'Grants', 'Other Income'];
@@ -469,7 +468,6 @@ export default function AccountingSystem() {
     sender.toLowerCase().includes(formData.sender.toLowerCase())
   );
 
->>>>>>> feature/dark-mode-themes
   // ---- AUTH & VALIDATION ----
 
   const validateTransactionForm = () => {
@@ -1560,7 +1558,6 @@ export default function AccountingSystem() {
         {/* Tabs */}
         <div className="flex flex-wrap gap-2 mb-6">
           <button
-<<<<<<< HEAD
             onClick={() => {
               if (activeTab !== 'add') {
                 handleCancelEdit();
@@ -1929,8 +1926,7 @@ export default function AccountingSystem() {
               </div>
 
               <div>
-<<<<<<< HEAD
-                <label className="block text-sm font-semibold mb-2">Remarks *</label>
+                <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">Remarks *</label>
                 
                 {/* Label Buttons */}
                 <div className="mb-3 flex flex-wrap gap-2">
@@ -2021,7 +2017,6 @@ export default function AccountingSystem() {
         {activeTab === 'view' && (
           <div className="bg-white dark:bg-black dark:border dark:border-gray-900 border border-gray-200 rounded-lg shadow-2xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] p-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-<<<<<<< HEAD
               <div>
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Transaction History</h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
@@ -2113,7 +2108,6 @@ export default function AccountingSystem() {
                 >
                   All Time
                 </button>
->>>>>>> feature/dark-mode-themes
                 <button
                   onClick={() => {
                     const csv = [
@@ -2140,7 +2134,6 @@ export default function AccountingSystem() {
                   <Download size={18} /> Export CSV
                 </button>
               </div>
-<<<<<<< HEAD
             </div>
 
             {isLoadingData ? (
@@ -2481,7 +2474,6 @@ export default function AccountingSystem() {
                             Delete
                           </button>
                         </td>
->>>>>>> feature/dark-mode-themes
                       </tr>
                     </thead>
                     <tbody>
@@ -2683,7 +2675,6 @@ export default function AccountingSystem() {
                   <Calendar size={14} /> Custom Range
                 </button>
               </div>
-<<<<<<< HEAD
 
               {/* Receiver Filter Buttons */}
               <div className="flex flex-wrap gap-2 mb-4">
