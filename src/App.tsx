@@ -129,7 +129,6 @@ export default function AccountingSystem() {
   const [playSoundOnSuccess, setPlaySoundOnSuccess] = useState(true);
   const [senderOptions, setSenderOptions] = useState<SenderOption[]>([]);
   const [receiverOptions, setReceiverOptions] = useState<ReceiverOption[]>([]);
-  const [isLoadingEntities, setIsLoadingEntities] = useState(false);
   const [isInitializing, setIsInitializing] = useState(() => {
     // Initialize as true if user is already logged in (prevents showing old data on refresh)
     return sessionStorage.getItem('madrasah_logged_in') === 'true';
@@ -299,7 +298,6 @@ export default function AccountingSystem() {
   }, []);
 
   const fetchEntities = useCallback(async () => {
-    setIsLoadingEntities(true);
     try {
       const currentUserType = sessionStorage.getItem('madrasah_user_type') || 'admin';
       
@@ -323,8 +321,6 @@ export default function AccountingSystem() {
       // Set empty arrays on error to avoid breaking the UI
       setSenderOptions([]);
       setReceiverOptions([]);
-    } finally {
-      setIsLoadingEntities(false);
     }
   }, []);
 
@@ -525,11 +521,6 @@ export default function AccountingSystem() {
   const handleSubcategorySelect = (option: SingleValue<SubcategoryOption>) => {
     const value = option?.value ?? '';
     setFormData({ ...formData, subcategory: value });
-  };
-
-  const handleSenderSelect = (option: SingleValue<SenderOption>) => {
-    const value = option?.value ?? '';
-    setFormData({ ...formData, sender: value });
   };
 
   const handleReceiverSelect = (option: SingleValue<ReceiverOption>) => {
