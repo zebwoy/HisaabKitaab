@@ -88,6 +88,8 @@ interface Entity {
 interface UserTypeOption {
   value: 'admin' | 'trial';
   label: string;
+}
+
 type ColorPalette = 'indigo' | 'blue' | 'purple' | 'emerald' | 'rose';
 type ThemeMode = 'light' | 'dark';
 
@@ -670,10 +672,6 @@ export default function AccountingSystem() {
           setIsInitializing(false);
         }
       } else {
-      setIsLoggedIn(true);
-      setLoginPassword('');
-        sessionStorage.setItem('madrasah_logged_in', 'true');
-    } else {
         const data = await response.json().catch(() => null);
         setAuthError(data?.message || 'Incorrect password. Please try again.');
       }
@@ -1609,22 +1607,6 @@ export default function AccountingSystem() {
         </div>
       )}
 
-       {/* Header */}
-       <div className="bg-indigo-600 text-white shadow-lg">
-         <div className="max-w-6xl mx-auto px-4 py-4 md:py-6 flex flex-col md:flex-row md:justify-between md:items-center gap-3">
-           <div>
-             <div className="flex items-center gap-3">
-               <h1 className="text-2xl md:text-3xl font-bold">{displayTitle}</h1>
-               {userType === 'trial' && (
-                 <span className="px-3 py-1 bg-amber-500 text-white text-xs font-bold rounded-full animate-pulse">
-                   TRIAL MODE
-                 </span>
-               )}
-             </div>
-             <p className="text-xs md:text-sm text-indigo-100">
-               Accounts | Reporting | Reconciliation
-             </p>
-           </div>
       {/* Header */}
       <div className={`${
         theme.mode === 'dark' 
@@ -1637,7 +1619,14 @@ export default function AccountingSystem() {
       } text-white shadow-lg`}>
         <div className="max-w-6xl mx-auto px-4 py-4 md:py-6 flex flex-col md:flex-row md:justify-between md:items-center gap-3">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold">Madrasah-e-Millat Bhiwandi</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl md:text-3xl font-bold">{displayTitle}</h1>
+              {userType === 'trial' && (
+                <span className="px-3 py-1 bg-amber-500 text-white text-xs font-bold rounded-full animate-pulse">
+                  TRIAL MODE
+                </span>
+              )}
+            </div>
             <p className={`text-xs md:text-sm ${theme.mode === 'dark' ? 'text-gray-300' : 'opacity-90'}`}>Accounts | Reporting | Reconciliation</p>
           </div>
           <div className="flex items-center gap-2">
@@ -1655,14 +1644,28 @@ export default function AccountingSystem() {
               {/* Theme Menu */}
               {showThemeMenu && (
                 <>
+                  {/* Mobile overlay backdrop */}
                   <div 
-                    className="fixed inset-0 z-40" 
+                    className="fixed inset-0 z-40 bg-black/20 md:bg-transparent" 
                     onClick={() => setShowThemeMenu(false)}
                   />
-                  <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-black dark:border dark:border-gray-900 rounded-lg shadow-2xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.9)] border border-gray-200 z-50 p-4">
+                  {/* Theme Menu Dialog - Responsive positioning */}
+                  <div className="fixed md:absolute bottom-0 md:bottom-auto left-0 md:left-auto right-0 md:right-0 top-auto md:top-full mt-0 md:mt-2 w-full md:w-64 max-w-md md:max-w-none mx-auto md:mx-0 bg-white dark:bg-black dark:border dark:border-gray-900 rounded-t-2xl md:rounded-lg shadow-2xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.9)] border border-gray-200 z-50 p-4 md:p-4 max-h-[80vh] md:max-h-none overflow-y-auto md:overflow-y-visible">
+                    {/* Close button for mobile */}
+                    <div className="flex items-center justify-between mb-4 md:hidden">
+                      <p className="text-lg font-semibold text-gray-900 dark:text-white">Theme Settings</p>
+                      <button
+                        onClick={() => setShowThemeMenu(false)}
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-900 rounded-lg transition-colors"
+                        aria-label="Close theme menu"
+                      >
+                        <X size={20} className="text-gray-600 dark:text-gray-400" />
+                      </button>
+                    </div>
+                    
                     {/* Mode Toggle */}
                     <div className="mb-4">
-                      <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Mode</p>
+                      <p className="text-sm md:text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Mode</p>
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
                           <Sun size={18} className={theme.mode === 'light' ? 'text-yellow-500' : 'text-gray-400'} />
@@ -1698,13 +1701,13 @@ export default function AccountingSystem() {
                     {/* Color Palette - Only show in light mode */}
                     {theme.mode === 'light' && (
                     <div>
-                      <p className="text-sm font-semibold text-gray-700 mb-2">Color Palette</p>
+                      <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Color Palette</p>
                       <div className="grid grid-cols-5 gap-2">
                             {(['indigo', 'blue', 'purple', 'emerald', 'rose'] as ColorPalette[]).map((palette) => {
                               const isSelected = theme.palette === palette;
                               const baseClasses = isSelected 
                                 ? 'ring-2 ring-offset-2 scale-110' 
-                                : 'hover:scale-105';
+                                : 'hover:scale-105 active:scale-95';
                               const colorClasses = {
                                 indigo: isSelected ? 'bg-indigo-600 ring-indigo-600' : 'bg-indigo-500 hover:bg-indigo-600',
                                 blue: isSelected ? 'bg-blue-600 ring-blue-600' : 'bg-blue-500 hover:bg-blue-600',
@@ -1716,15 +1719,16 @@ export default function AccountingSystem() {
                                 <button
                                   key={palette}
                                   onClick={() => setTheme({ ...theme, palette })}
-                                  className={`w-full h-10 rounded-lg transition-all ${baseClasses} ${colorClasses[palette]}`}
+                                  className={`w-full h-10 md:h-10 rounded-lg transition-all touch-manipulation ${baseClasses} ${colorClasses[palette]}`}
                                   title={palette.charAt(0).toUpperCase() + palette.slice(1)}
+                                  aria-label={`Select ${palette} color palette`}
                                 />
                               );
                             })}
                           </div>
                         </div>
                     )}
-                      </div>
+                  </div>
                     </>
                   )}
                 </div>
