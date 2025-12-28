@@ -108,7 +108,7 @@ export default function AccountingSystem() {
   });
   const [displayTitle, setDisplayTitle] = useState<string>(() => {
     const savedUserType = (sessionStorage.getItem('madrasah_user_type') as 'admin' | 'trial') || 'trial';
-    return savedUserType === 'trial' ? 'Trial account for Demo Purpose' : 'Madrasah-e-Millat Bhiwandi';
+    return savedUserType === 'trial' ? 'Trial account for Demo Purpose' : 'Millat Quran Learning Centre';
   });
   const [isTitleAnimating, setIsTitleAnimating] = useState(false);
   const [loginPassword, setLoginPassword] = useState('');
@@ -266,7 +266,7 @@ export default function AccountingSystem() {
       setTimeout(() => {
         const newTitle = newUserType === 'trial' 
           ? 'Trial account for Demo Purpose' 
-          : 'Madrasah-e-Millat Bhiwandi';
+          : 'Millat Quran Learning Centre';
         setDisplayTitle(newTitle);
         setUserType(newUserType);
         // Fade in new title with smooth transition
@@ -333,7 +333,7 @@ export default function AccountingSystem() {
         // Update displayTitle based on saved userType
         const title = savedUserType === 'trial' 
           ? 'Trial account for Demo Purpose' 
-          : 'Madrasah-e-Millat Bhiwandi';
+          : 'Millat Quran Learning Centre';
         setDisplayTitle(title);
       }
     }
@@ -650,7 +650,7 @@ export default function AccountingSystem() {
         // Update displayTitle based on userType
         const title = userType === 'trial' 
           ? 'Trial account for Demo Purpose' 
-          : 'Madrasah-e-Millat Bhiwandi';
+          : 'Millat Quran Learning Centre';
         setDisplayTitle(title);
         
         // Show loader while fetching new data
